@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Procedural Map Generator Live View</title>
+    <style>
+        body {
+            background-color: #1e1e1e;
+            color: white;
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        canvas {
+            border: 2px solid #555;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            image-rendering: pixelated;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Procedural Map Generation Iterations</h2>
+    
+    <canvas id="mapCanvas" width="450" height="450"></canvas>
+    <p id="statusText">Generating...</p>
+
+    <div style="margin-bottom: 15px; margin-top: 15px;">
+        <button id="macroBtn">Generate World Map (Macro)</button>
+        <button id="microBtn">Generate Area Map (Micro)</button>
+    </div>
+
+    <!-- Import your script -->
+    <script type="module" src="./WorldGeneration.js"></script>
+</body>
+</html>
