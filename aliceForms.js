@@ -1,5 +1,10 @@
 import { Elements } from "./elements";
 
+
+/**
+ * To prevent the generalist class overlapping with the specialist classes, Star will have a statWeight total of 4.8 to give the idea she is the 6th Ranger of the Team
+ * Princess is the exception as that is her base form
+ */
 export const StarForms = {
     PRINCESS: {
         formName: "Princess",
@@ -14,21 +19,21 @@ export const StarForms = {
     PHOENIX: {
         formName: "Phoenix",
         elements: Elements.FIRE.name,
-        statWeight: { strength: 0.7, defense: 0.8, magic: 1.5, ward: 1.3, speed: 1.2}
+        statWeight: { strength: 0.5, defense: 0.8, magic: 1.4, ward: 0.9, speed: 1.2}
     },
     UNICORN: {
         formName: "Unicorn", 
         elements: Elements.LIGHT.name,
-        statWeight: { strength: 0.9, defense: 1.1, magic: 1.2, ward: 1.2, speed: 1.6}
+        statWeight: { strength: 0.7, defense: 0.8, magic: 1.1, ward: 0.8, speed: 1.4}
     }, 
     PIXIE: {
         formName: "Pixie",
         elements: Elements.WIND.name,
-        statWeight: { strength: 0.5, defense: 0.7, magic: 1.3, ward: 1.0, speed: 1.3}
+        statWeight: { strength: 1.1, defense: 0.8, magic: 0.9, ward: 0.8, speed: 1.2}
     }, 
     PEACOCK: {
         formName: "Peacock",
         elements: Elements.SHADOW.name,
-        statWeight: { strength: 0.7, defense: 1.0, magic: 1.6, ward: 1.4, speed: 1.0}
+        statWeight: { strength: 0.7, defense: 0.9, magic: 1.2, ward: 1.1, speed: 0.9}
     }
 };

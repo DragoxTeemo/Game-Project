@@ -32,9 +32,9 @@ export class MiniGameSystem {
         if (barStopPosition >= targetZoneStart && barStopPosition <= targetZoneEnd) {
             return { multiplier: 1.2, text: "Perfect!"};
         } else if (barStopPosition >= partialZoneStart && barStopPosition <= partialZoneEnd) {
-            return { multiplier: 0.6, text: "Graze Hit"};
+            return { multiplier: 1.0, text: "Hit"};
         } else {
-            return { multiplier: 0.0, text: "Miss!"};
+            return { multiplier: 0.5, text: "Graze!"};
         }
     }
 
