@@ -14,23 +14,42 @@
  *JJ/Strike: a = .65, b = 11, c = 50
  *Alice/Star: a = 1.5, b = 16, c = 10
  */
+import { Elements } from "./elements";
 
-// entities.js
 class MaskedRider {
-    constructor(name, codename, coefficients, weights, elements = null, statAffinities = null) {
-        this.name = name;
-        this.codename = codename;
+    constructor(id, registryData) {
+    //constructor(name, codename, coefficients, weights, elements = null, statAffinities = null) {
+        this.id = id;
+        this.name = registryData.name;
+        this.codename = registryData.codename;
         this.level = 1;
         this.xp = 0;
 
+        this.coefficients = registryData.coefficients;
         this.a = coefficients.a;
         this.b = coefficients.b;
         this.c = coefficients.c;
-        this.weights = weights; // {hp: 0.4, strength: 0.15, ...}
-        this.elements = elements;
+        this.curvePowerFactor = this.calculateCurvePower();// Automatically derive growth modifier from the cubic coefficients
+        this.baseElement = registryData.elements || Elements.PHYSICAL.name;
+        this.elements = this.baseElement;
+        this.allowedElements = registryData.allowedElements || null;// Store allowed list
+    
 
-        this.curvePowerFactor = this.calculateCurvePower(); // Automatically derive growth modifier from the cubic coefficients
-        this.statAffinities = statAffinities || {strength: 10, defense: 10, magic: 10, ward: 10, speed: 10}; //If not provided, default to standard weight
+        if (registryData.forms) {
+            this.hasForms = true;
+            this.forms = registryData.forms;
+            let defaultFormKey = Object.keys(this.forms)[0];
+            this.activeFormKey = defaultFormKey;
+
+            let initialForm = this.forms[defaultFormKey];
+            this.statAffinities = initialForm.statWeight;
+            if (initialForm.elements) {
+                this.elements = initialForm.elements;
+            }
+        } else {
+            this.hasForms = false;
+            this.statAffinities = statAffinities || {strength: 10, defense: 10, magic: 10, ward: 10, speed: 10}; //If not provided, default to standard weight
+        }
 
         // Visible public stats starting at the universal baseline
         this.strength = 10;
@@ -54,8 +73,48 @@ class MaskedRider {
         this.hasBonusAction = false;
     }
 
+    infuseEchoElement(elementName) {
+        if (this.codename !== "Echo") {
+            console.warn(`${this.codename} does not support secondary element infusion.`);
+            return false;
+        }
+
+        const allowedEchoElements = [
+            Elements.FIRE.name,
+            Elements.ICE.name,
+            Elements.WIND.name,
+            Elements.LIGHTNING.name
+        ];
+        if (!allowedEchoElements.includes(elementName)) {
+            console.warn(`Cody cannot use ${elementName}. Restricted to Fire, Ice, Wind, and Lightning.`);
+            return false;
+        }
+        this.elements = elementName;
+        console.log(`Cody infused his auxiliary form with element: ${elementName}`);
+        return true;
+    }
+
+    transform(formKey) {
+        if (!this.hasForms || !this.forms[formKey]) return false;
+
+        this.activeFormKey= formKey;
+        let targetForm = this.forms[formKey];
+
+        this.statAffinities = targetForm.statWeight;
+        if (targetForm.elements) {
+            this.elements = targetForm.elements;
+        }
+        console.log(`${this.codename} shifted configuration into ${targetForm.formName || formKey}`);
+        return true;
+    }
+
     move(gridCoordinates) {
         console.log(`${this.codename} traverses the micro-grid based on speed: ${this.speed} towards coordinates (${gridCoordinates.x}, ${gridCoordinates.y})`);
+    }
+
+    calculateCurvePower() {
+        let coefficientSum = this.a + (this.b / 10) + (this.c / 100);
+        return Math.min(1.5, Math.max(0.8, coefficientSum / 3.0));
     }
 
     getXpRequirementPerLevel(targetLevel) {
@@ -77,7 +136,7 @@ class MaskedRider {
     }
 
     calculateStatGrowth() {
-        let baseScaling = 0.55;
+        let baseScaling = 0.45;
 
         this.strength = this.updateSingleStat('strength', baseScaling);
         this.defense  = this.updateSingleStat('defense', baseScaling);
@@ -92,9 +151,14 @@ class MaskedRider {
 
     updateSingleStat(statName, baseScaling) {
         let affinity = this.statAffinities[statName] || 1.0;
-        let growthIncrement = baseScaling * this.curvePowerFactor * affinity; // Growth increment combines: Base Scaling * Character's Curve Power * Specific Stat Affinity
+
+        
+        let levelProgressRatio = this.level / 99; // RPG style growth to prevent characters from hitting 99 in certain stats through leveling alone
+        let diminishingFactor = 1.0 - (levelProgressRatio * 0.6); // Growth slows by up to 60%
+
+        let growthIncrement = baseScaling * this.curvePowerFactor * affinity * diminishingFactor; // Growth increment combines: Base Scaling * Character's Curve Power * Specific Stat Affinity
         this.statAccumulators[statName] += growthIncrement; // Add to background accumulator
-        return Math.min(99, Math.floor(this.statAccumulators[statName])); // Return whole integer floor, ensuring stats never drop below baseline 10 and cap at 99
+        return Math.min(99, Math.floor(this.statAccumulators[statName])); // Return whole integer floor, ensuring stats never drop below baseline 10 reaches around 50-70 depending on affinities
     }
 }
 
