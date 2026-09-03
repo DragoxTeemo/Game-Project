@@ -52,23 +52,26 @@ class MaskedRider {
         }
 
         // Visible public stats starting at the universal baseline
-        this.strength = 10;
-        this.defense = 10;
-        this.magic = 10;
-        this.ward = 10;
-        this.speed = 10;
+        const baseStatBaseline = 3; 
+        this.strength = baseStatBaseline;
+        this.defense = baseStatBaseline;
+        this.magic = baseStatBaseline;
+        this.ward = baseStatBaseline;
+        this.speed = baseStatBaseline;
 
         // Hidden background accumulator to tract exact decimal growth
         this.statAccumulators = {
-            strength: 10.0,
-            defense: 10.0,
-            magic: 10.0,
-            ward: 10.0,
-            speed: 10.0
+            strength: baseStatBaseline * 1.0,
+            defense: baseStatBaseline * 1.0,
+            magic: baseStatBaseline * 1.0,
+            ward: baseStatBaseline * 1.0,
+            speed: baseStatBaseline * 1.0
         };
 
-        this.maxHp = 100;
+        let rawCurveAtLevel1 = this.getXpRequirementPerLevel(1);
+        this.maxHp = Math.floor(rawCurveAtLevel1 / 150) + 20; //To scale based on character coefficients
         this.hp = this.maxHp;
+        
         this.isDefeated = false;
         this.hasBonusAction = false;
     }
