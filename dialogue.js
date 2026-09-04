@@ -94,9 +94,75 @@
  *  <print text: [Cody has unlocked the recipe to make Gimbap] 
  *              [Cody has unlocked the recipie to make Latkes]
  * TODO: Add text notification -> [Cody has unlocked recipe to make x]
+ * TODO: Continuing after defeat: e.g. "I won't mess up this time."
+ * TODO: Preparing to enter the dungeon entry for the first time: "Let us begin", "Let's do this!"
  * 
  * ---------------------------------------------------------------------------
  */
+export const RescueDialogue = {
+    Echo: {
+        defeated: [
+
+        ],
+        benchedSaving: [
+
+        ]
+    },
+    Ace: {
+        defeated: [
+
+        ],
+        benchedSaving: [
+            
+        ]
+    },
+    BlazE: {
+        defeated: [
+            "I didn't see them...?"
+        ],
+        benchedSaving: [
+            "Get down!"
+        ],
+        specificSaving: {
+            Rose: "KIRA!!!!"
+        }  
+    },
+    Rose: {
+        defeated: [
+            "I'm sorry...",
+            "They were too strong for me...",
+            "They outmaneuvered me?"
+        ],
+        benchedSaving: [
+            "I got you!",
+            "Hold Tight!",
+
+        ],
+        specificSaving: {
+            BlazE: "REBECCA!!!"
+        }
+    },
+    Strike: {
+        defeated: [
+            "FUCK!!!"
+        ],
+        benchedSaving: [
+            
+        ]
+    },
+    Star: {
+        defeated: [
+            "We took too many heavy hits",
+            "I- I'm scared"
+        ],
+        benchedSaving: [
+            
+        ],
+        specificSaving: {
+            Echo: "I got you! Please don't leave me!"
+        }
+    },
+}
 
 export const DialogueSystem = {
     activeBox: null,
@@ -129,6 +195,21 @@ export const DialogueSystem = {
         let message = quotes[textKey] || textKey;
         this.activeBox.innerHTML = `<strong style="color: #4ea8de; font-size: 1.1em;">Alice:</strong> ${message}`;
         this.activeBox.style.display = "block";
+    },
+    getConditionalScript(benchedCodename, activeCodename, category) {
+        let characterPool = RescueDialogue[benchedCodename];
+        if (!characterPool) return "Let's Move!";
+        
+        // Check if a specific dynamic line exists for this pairing under benchedSaving
+        if (category === "benchedSaving" && characterPool.specificSaving && characterPool.specificSaving[activeCodename]) {
+            if (Math.random() < 0.5) {
+                return characterPool.specificSaving[activeCodename];
+            } 
+        }
+
+        let linePool = characterPool[category] || characterPool.benchedSaving;
+        let randomIndex = Math.floor(Math.random() * linePool.length);
+        return linePool[randomIndex];
     },
 
     hide() {

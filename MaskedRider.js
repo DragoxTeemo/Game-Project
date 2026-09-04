@@ -16,7 +16,7 @@
  */
 import { Elements } from "./elements";
 
-class MaskedRider {
+export class MaskedRider {
     constructor(id, registryData) {
     //constructor(name, codename, coefficients, weights, elements = null, statAffinities = null) {
         this.id = id;
@@ -71,7 +71,7 @@ class MaskedRider {
         let rawCurveAtLevel1 = this.getXpRequirementPerLevel(1);
         this.maxHp = Math.floor(rawCurveAtLevel1 / 150) + 20; //To scale based on character coefficients
         this.hp = this.maxHp;
-        
+
         this.isDefeated = false;
         this.hasBonusAction = false;
     }

@@ -1,17 +1,49 @@
-import {Elements, ElementCycles } from "./elements";
+import {Elements} from "./elements";
 
 //Placeholder names
 export const FoeArchetypes = {
-    BOKOBOLIN: "Bokobolin",
-    MOBLIN:    "Moblin",
-    LIZALFOS:  "Lizalfos"
+    BOKOBOLIN: "Bokobolin", // Basic threat
+    MOBLIN:    "Moblin",    // Juggernaut threat
+    LIZALFOS:  "Lizalfos"   // Range focus threat
 };
 
+// Using BOTW Color system as a simple way to show strength, a potential idea is less of the main color and focus
+// on secondary colors to emphasize danger level
 export const FoeTiers = {
     RED:    "Red",
     BLUE:   "Blue",
     BLACK:  "Black",
     SILVER: "Silver"
+};
+
+export const MasterFoeRegistry = {
+    [FoeArchetypes.BOKOBOLIN]: {
+        baseStats: { hp: 1.0, str: 1.0, def: 1.0, mag: 1.0, wrd: 1.0, spd: 1.0 },
+        tiers: {
+            [FoeTiers.RED]:    { cost: 1, minLevel: 1,  xpMin: 45,   xpMax: 140,  tierMult: 1.0, profile: {weak: [Elements.FIRE.name, Elements.LIGHTNING.name], resist: [], immune: []} },
+            [FoeTiers.BLUE]:   { cost: 3, minLevel: 5,  xpMin: 180,  xpMax: 380,  tierMult: 1.25, profile: {weak: [Elements.ICE.name], resist: [Elements.FIRE.name], immune: []} },
+            [FoeTiers.BLACK]:  { cost: 5, minLevel: 22, xpMin: 450,  xpMax: 850,  tierMult: 1.50, profile: {weak: [Elements.WIND.name], resist: [Elements.LIGHT.name], immune: [Elements.SHADOW.name]} },
+            [FoeTiers.SILVER]: { cost: 7, minLevel: 42, xpMin: 1200, xpMax: 2500, tierMult: 2.00, profile: {weak: [Elements.LIGHT.name], resist: [], immune: [Elements.SHADOW.name, Elements.FIRE.name]} }
+        }
+    },
+    [FoeArchetypes.LIZALFOS]: {
+        baseStats: { hp: 1.1, str: 1.1, def: 0.8, mag: 1.2, wrd: 0.8, spd: 1.3 },
+        tiers: {
+            [FoeTiers.RED]:    { cost: 2, minLevel: 2,  xpMin: 75,   xpMax: 160,  tierMult: 1.0, profile: {weak: [Elements.LIGHTNING.name, Elements.WIND.name], resist: [], immune: []} },
+            [FoeTiers.BLUE]:   { cost: 4, minLevel: 9,  xpMin: 240,  xpMax: 450,  tierMult: 1.25, profile: {weak: [Elements.FIRE.name], resist: [Elements.LIGHTNING.name], immune: []} },
+            [FoeTiers.BLACK]:  { cost: 6, minLevel: 28, xpMin: 580,  xpMax: 980,  tierMult: 1.50, profile: {weak: [Elements.ICE.name], resist: [Elements.FIRE.name], immune: [Elements.WIND.name]} },
+            [FoeTiers.SILVER]: { cost: 8, minLevel: 46, xpMin: 1500, xpMax: 3000, tierMult: 2.00, profile: {weak: [Elements.SHADOW.name], resist: [], immune: [Elements.LIGHTNING.name, Elements.FIRE.name]} }
+        }
+    },
+    [FoeArchetypes.MOBLIN]: {
+        baseStats: { hp: 1.2, str: 1.3, def: 1.1, mag: 0.8, wrd: 1.1, spd: 0.6 },
+        tiers: {
+            [FoeTiers.RED]:    { cost: 3, minLevel: 4,  xpMin: 110,  xpMax: 210,  tierMult: 1.0, profile: {weak: [Elements.ICE.name, Elements.WIND.name], resist: [], immune: []} },
+            [FoeTiers.BLUE]:   { cost: 6, minLevel: 15, xpMin: 320,  xpMax: 600,  tierMult: 1.25, profile: {weak: [Elements.WIND.name], resist: [Elements.ICE.name], immune: []} },
+            [FoeTiers.BLACK]:  { cost: 9, minLevel: 34, xpMin: 720,  xpMax: 1200, tierMult: 1.50, profile: {weak: [Elements.LIGHTNING.name], resist: [Elements.SHADOW.name], immune: [Elements.ICE.name]} },
+            [FoeTiers.SILVER]: { cost: 12, minLevel: 52, xpMin: 2000, xpMax: 4000, tierMult: 2.00, profile: {weak: [Elements.FIRE.name], resist: [Elements.WIND.name], immune: [Elements.ICE.name, Elements.LIGHTNING.name]} }
+        }
+    }
 };
 
 export class Virus {
@@ -25,6 +57,7 @@ export class Virus {
 
         this.applyArchetypeScaling();
         this.applyElementalProfile();
+        this.xpReward = this.calculateStaticXpReward();
     }
 
     calculateScaledLevel(groupLevel, tier) {
@@ -38,61 +71,44 @@ export class Virus {
     }
 
     applyArchetypeScaling() {
-        const archetypes = {
-            [FoeArchetypes.BOKOBOLIN]: { hp: 1.0, str: 1.0, def: 1.0, mag: 1.0, wrd: 1.0, spd: 1.0 },
-            [FoeArchetypes.MOBLIN]:    { hp: 1.8, str: 1.4, def: 1.3, mag: 0.8, wrd: 1.4, spd: 0.6 },
-            [FoeArchetypes.LIZALFOS]:  { hp: 1.1, str: 1.1, def: 0.9, mag: 1.4, wrd: 0.9, spd: 1.5 },
-        };
+        const entry = MasterFoeRegistry[this.archetype] || MasterFoeRegistry[FoeArchetypes.BOKOBOLIN];
+        const tierData = entry.tiers[this.tier] || entry.tiers[FoeTiers.RED];
+        let mod = entry.baseStats;
+        let tierMult = tierData.tierMult;
 
-        const tierMultipliers = {
-            [FoeTiers.RED]: 1.0,
-            [FoeTiers.BLUE]: 1.35,
-            [FoeTiers.BLACK]: 1.80,
-            [FoeTiers.SILVER]: 2.50
-        };
-
-        let mod = archetypes[this.archetype] || archetypes[FoeArchetypes.BOKOBOLIN];
-        let tierMult = tierMultipliers[this.tier] || 1.0;
-
-        this.maxHP = Math.floor((40 + (this.level * 15)) * mod.hp * tierMult);
+        this.maxHP = Math.floor((30 + (this.level * 5.5)) * mod.hp * tierMult);
         this.hp = this.maxHP;
-        this.strength = Math.floor((5 + (this.level * 1.8)) * mod.str * tierMult);
-        this.defense  = Math.floor((3 + (this.level * 1.4)) * mod.def * tierMult);
-        this.magic    = Math.floor((4 + (this.level * 1.5)) * mod.str * tierMult);
-        this.ward     = Math.floor((3 + (this.level * 1.2)) * mod.def * tierMult);
-        this.speed    = Math.floor((6 + (this.level * 1.6)) * mod.spd * tierMult);
+
+        this.strength = Math.floor((4 + (this.level * 0.55)) * mod.str * tierMult);
+        this.defense  = Math.floor((4 + (this.level * 0.50)) * mod.def * tierMult);
+        this.magic    = Math.floor((4 + (this.level * 0.50)) * mod.mag * tierMult);
+        this.ward     = Math.floor((4 + (this.level * 0.45)) * mod.wrd * tierMult);
+        this.speed    = Math.floor((5 + (this.level * 0.60)) * mod.spd * tierMult);
 
         this.isDefeated = false;
     }
+    calculateStaticXpReward() {
+        const entry = MasterFoeRegistry[this.archetype] || MasterFoeRegistry[FoeArchetypes.BOKOBOLIN]; //Fall back
+        const tierData = entry.tiers[this.tier] || entry.tiers[FoeTiers.RED];
+
+        const archetypeMultipliers = {
+            [FoeArchetypes.BOKOBOLIN]: 1.0,
+            [FoeArchetypes.LIZALFOS]:  1.2,
+            [FoeArchetypes.MOBLIN]:    1.5
+        };
+
+        let multiplier = archetypeMultipliers[this.archetype] || 1.0;
+        let randomBase = Math.floor(Math.random() * (tierData.xpMax - tierData.xpMin + 1)) + tierData.xpMin;
+        return Math.floor(randomBase * multiplier);
+    }
 
     applyElementalProfile() {
-    const profiles = {
-        [FoeArchetypes.BOKOBOLIN]: {
-            [FoeTiers.RED]:     {weak: [Elements.FIRE.name, Elements.LIGHTNING.name], resist: [], immune: []}, 
-            [FoeTiers.BLUE]:    {weak: [Elements.ICE.name], resist: [Elements.FIRE.name], immune: []},
-            [FoeTiers.BLACK]:   {weak: [Elements.WIND.name], resist: [Elements.LIGHT.name], immune: [Elements.SHADOW.name]},
-            [FoeTiers.SILVER]:  {weak: [Elements.LIGHT.name], resist: [], immune: [Elements.SHADOW.name, Elements.FIRE.name]}
-        },
-        [FoeArchetypes.MOBLIN]: {
-            [FoeTiers.RED]:     {weak: [Elements.ICE.name, Elements.WIND.name], resist: [], immune: []},
-            [FoeTiers.BLUE]:    {weak: [Elements.WIND.name], resist: [Elements.ICE.name], immune: []},
-            [FoeTiers.BLACK]:   {weak: [Elements.LIGHTNING.name], resist: [Elements.SHADOW.name], immune: [Elements.ICE.name]},
-            [FoeTiers.SILVER]:  {weak: [Elements.FIRE.name], resist: [Elements.WIND.name], immune: [Elements.ICE.name, Elements.LIGHTNING.name]}
-        },
-        [FoeArchetypes.LIZALFOS]: {
-            [FoeTiers.RED]:     {weak: [Elements.LIGHTNING.name, Elements.WIND.name], resist: [], immune: []},
-            [FoeTiers.BLUE]:    {weak: [Elements.FIRE.name], resist: [Elements.LIGHTNING.name], immune: []},
-            [FoeTiers.BLACK]:   {weak: [Elements.ICE.name], resist: [Elements.FIRE.name], immune: [Elements.WIND.name]},
-            [FoeTiers.SILVER]:  {weak: [Elements.SHADOW.name], resist: [], immune: [Elements.LIGHTNING.name, Elements.FIRE.name]}
-        }
-    };
+        const entry = MasterFoeRegistry[this.archetype] || MasterFoeRegistry[FoeArchetypes.BOKOBOLIN];
+        const tierData = entry.tiers[this.tier] || entry.tiers[FoeTiers.RED];
 
-    let archetypeProfile = profiles[this.archetype] || profiles[FoeArchetypes.BOKOBOLIN];
-    let tierProfile = archetypeProfile[this.tier] || {weak: [], resist: [], immune: []};
-
-    this.weaknesses = tierProfile.weak;
-    this.resistances = tierProfile.resist;
-    this.immunities = tierProfile.immune;
+        this.weaknesses = tierData.profile.weak;
+        this.resistances = tierData.profile.resist;
+        this.immunities = tierData.profile.immune;
     }
 
     evaluateElementalEffect(incomingElement) {
