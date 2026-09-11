@@ -121,7 +121,7 @@ function generateMicroMap(width, height) {
 }
 
 function drawMicroMapVisual(grid) {
-    const colors = { floor: "#d3d3d3", mud: "#8b5a2b", scrap: "#ff4500" };
+    const colors = { floor: "#d3d3d3", mud: "#8b5a2b", scrap: "#ff4500", column: "#65788e" };
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     for (let x = 0; x < grid.length; x++) {
@@ -333,6 +333,44 @@ function isMapFullyAccessible(startNode, allNodes) {
         }
     }
     return visited.size === allNodes.size;
+}
+
+function injectColumns(grid, width, height, rarityChance = 0.12) {
+    let minX = 3, maxX = width - 4;
+    let minY = 3, maxY = height - 4;
+
+    for (let x = minX; x <= maxX; x++) {
+        for (let y = minY; y <= maxY; y++) {
+            if (Math.random() > rarityChance) continue;
+
+            // Define the 5-tile cross pattern coordinates
+            let crossTile = [
+                {x: x, y: y}, // center 
+                {x: x, y: y - 1}, // north neighbor
+                {x: x, y: y + 1}, // south neighbor
+                {x: x - 1, y}, // west neighbor
+                {x: x + 1, y}, // east neighbor
+            ];
+
+            let canPlace = crossTiles.every(t => {
+                let tile = grid[t.x]?.[t.y];
+                return tile && (tile.type === "floor" || tile.type === "mud");
+            });
+
+            if (canPlace) {
+                for (let t of crossTiles) {
+                    grid[t.x][t.y] = { 
+                        type: "column", 
+                        isIndestructible: true, 
+                        isCover: true           
+                    };
+                }
+                x += 2; // skip to prevent overlapping 
+                break;
+            }
+        }
+    }
+    return grid;
 }
 
 // Initial micro render on script load

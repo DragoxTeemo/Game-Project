@@ -30,7 +30,6 @@ export class GameDirector {
     transitionToCombat(roomNode) {
         this.gameState = "COMBAT";
         this.updateGroupLevel();
-
         this.activeEnemies = EncounterDirector.generateRoomEncounter(this.currentGroupLevel);
 
         console.log(`Combat initiated! Group Level: ${this.currentGroupLevel}`, this.activeEnemies.map(e => `${e.tier} ${e.archetype} (Lvl ${e.level})`));

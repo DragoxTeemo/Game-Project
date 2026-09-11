@@ -25,10 +25,16 @@ export class MaskedRider {
         this.level = 1;
         this.xp = 0;
 
-        this.coefficients = registryData.coefficients;
-        this.a = coefficients.a;
-        this.b = coefficients.b;
-        this.c = coefficients.c;
+        this.coefficients = {
+            a: registryData.coefficients?.a ?? 1,
+            b: registryData.coefficients?.b ?? 1,
+            c: registryData.coefficients?.c ?? 1
+        };
+        this.a = this.coefficients.a;
+        this.b = this.coefficients.b;
+        this.c = this.coefficients.c;
+        
+
         this.curvePowerFactor = this.calculateCurvePower();// Automatically derive growth modifier from the cubic coefficients
         this.baseElement = registryData.elements || Elements.PHYSICAL.name;
         this.elements = this.baseElement;
@@ -48,7 +54,13 @@ export class MaskedRider {
             }
         } else {
             this.hasForms = false;
-            this.statAffinities = statAffinities || {strength: 10, defense: 10, magic: 10, ward: 10, speed: 10}; //If not provided, default to standard weight
+            this.statAffinities = statAffinities || {
+                strength: 1.0, 
+                defense: 1.0, 
+                magic: 1.0, 
+                ward: 1.0, 
+                speed: 1.0
+            }; //If not provided, default to standard weight
         }
 
         // Visible public stats starting at the universal baseline
@@ -165,21 +177,6 @@ export class MaskedRider {
     }
 }
 
-/**
-const alice = new MaskedRider(
-    "Alice", "Rider-A", 
-    { a: 1.5, b: 16, c: 10 }, 
-    { strength: 0.9, defense: 0.8, magic: 1.4, ward: 1.3, speed: 1.1 }
-);
-
-// Rebecca has lower coefficients (a = 0.7, b = 12, c = 40), scaling more steadily.
-const rebecca = new MaskedRider(
-    "Rebecca", "Rider-R", 
-    { a: 0.7, b: 12, c: 40 }, 
-    { strength: 1.0, defense: 1.1, magic: 0.8, ward: 0.9, speed: 1.3 }
-);
-
-*/
 /*
 class Antagonist {
     constructor(name, title, level, element, weakness) {

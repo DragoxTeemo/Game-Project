@@ -1,22 +1,4 @@
 export class TacticalEnvironment {
-    /**
-     * Calculates all discrete grid coordinates along a straight line using Bresenham's algorithm.
-     * Excludes the source and target tiles.
-     * 
-     * @future_feature (Line-of-Sight UI & Multi-Raycasting):
-     * - Extend or wrap this method to support sub-tile or multi-ray casting for partial sight mechanics.
-     * - Cast parallel sub-rays (e.g., from tile corners) to calculate an exact visibility percentage (0% to 100%).
-     * - Use the resulting percentage to dynamically drive UI elements (e.g., rendering a green line for clear sight, 
-     *   a partial/yellow line for reduced accuracy, or a red line/blocked indicator for total obstruction).
-     * - If visibility falls below a defined threshold (e.g., < 20%), prevent execution of CombatAction entirely; 
-     *   otherwise, apply dynamic accuracy penalties (e.g., Fallout-style modifiers like BlazE's -10% cover penalty).
-     * 
-     * @param {Object} source - Starting coordinates {x, y}
-     * @param {Object} target - Ending coordinates {x, y}
-     * @returns {Array<Object>} Array of intermediate tile coordinates {x, y}
-     */
-        
-
     static getTilesAlongLine(source, target) {
         let tiles = [];
         let dx = Math.abs(target.x - source.x);

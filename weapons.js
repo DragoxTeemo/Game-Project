@@ -24,12 +24,14 @@ export class CharacterWeapon {
 // and a dice roll (d6 by default, increments as Alice levels up every 20 levels) 
 // (10 scrap for rifle ammo? depends on how often scraps will drop we'll say characters drop xp and a chance to drop scrap (scrap is a default term for loot drops))
 //As for shotguns is during crafting only 3-4 bullets can be made (+1 (increments per 20 levels; as for Alice the dice starts at 1d4 increase per a fair amount)
-export const CharacterWeapon = {
+export const CHARACTER_WEAPONS = {
+    ECHO: new CharacterWeapon("Shock Hammer", WeaponType.HAMMER, 50, 1, "SINGLE", null),
     ACE: new CharacterWeapon("Titan Greatsword", WeaponType.MELEE_SWORD, 65, 2, "AOE_CONE", "SLIDER"),
     BLAZE_PISTOL: new CharacterWeapon("Pistol", WeaponType.RANGED_GUN, 30, 5, "SINGLE", "RNG"),
     BLAZE_AR: new CharacterWeapon("Assault Rifle", WeaponType.RANGED_GUN, 50, 8, "SINGLE", "RNG"), 
     BLAZE_SHOTGUN: new CharacterWeapon("Shotgun", WeaponType.RANGED_GUN, 80, 3, "AOE_CONE", "RNG"), 
-    ROSE: new CharacterWeapon("Plasma Whip", WeaponType.WHIP, 45, 3, "AOE")
+    ROSE: new CharacterWeapon("Plasma Whip", WeaponType.WHIP, 45, 3, "AOE", "TIME_Bar"),
+    STRIKE: new CharacterWeapon("Gauntlet")
 
 
 }
