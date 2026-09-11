@@ -123,4 +123,66 @@ export class Virus {
         }
         return {type: "NORMAL", multiplier: 1.0, message: ""};
     }
+    chooseAction (party, allies, availableActions) {
+        // Placeholder logic for choosing an action
+        let bestAction = null;
+        let bestScore = -Infinity;
+        let bestTarget = null;
+
+        for (let action of availableActions) {
+            for (let target of party) {
+                let score = this.evaluateActionScore(action, target, party, allies);
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestAction = action;
+                    bestTarget = target;
+                }
+            }
+        }
+
+        return {action: bestAction, target: bestTarget};
+    }
+
+    evaluateActionScore(action, target, party, allies) {
+        // Placeholder scoring logic
+        let score = action.action.baseDamage || 0;
+
+        //Target Health Exploitation (Execute low-HP heroes)
+        const targetHpPercentage = target.hp / target.maxHP;
+        if (targetHpPercentage < 0.3) {
+            score += 30; // Prioritize low HP targets
+        }
+        //Elemental Exploitation
+        if (action.elements) {
+            if (target.weaknesses?.includes(action.elements)) {
+                score += 20; // Bonus for exploiting weakness
+            }
+            if (target.resistances?.includes(action.elements)) {
+                score -= 10; // Penalty for resistance
+            }
+            if (target.immunities?.includes(action.elements)) {
+                score -= 50; // Heavy penalty for immunity
+            }
+
+        }
+        
+        //Archetype persona adjustments
+        if (this.archetype === FoeArchetypes.LIZALFOS && target.isBackline && action.action.type === "RANGED") {
+            score += 20; // LIZALFOS favor ranged attacks
+        }
+        if (this.archetype === FoeArchetypes.MOBLIN && target.isPrimaryDamageDealer && action.action.type === "MAGIC") {
+            score += 20; // MOBLINs favor magic attacks
+        }
+
+        //Low Health Self-Preservation
+        const selfHpPercentage = this.hp / this.maxHP;
+        if (selfHpPercentage < 0.3 && action.action.type === "HEAL") {
+            score += 50; // Prioritize healing when low HP
+        }
+
+    //Add slight random variance so that AI isn't 100% deterministic
+        score += Math.floor(Math.random() * 10) - 5; // Random variance between -5 and +4
+        return score;
+    
+    }
 }
