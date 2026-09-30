@@ -2,7 +2,7 @@ export const PlayerInventory = {
     recipes: [],
 
     unlockRecipes(recipeName) {
-        if (!this.recipeName.includes(recipeName)) {
+        if (!this.recipes.includes(recipeName)) {
             this.recipes.push(recipeName);
             return true;
         }

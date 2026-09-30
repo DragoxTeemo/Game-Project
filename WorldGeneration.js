@@ -63,7 +63,9 @@ const noise2D = createNoise2D();
 
 const canvas = document.getElementById('mapCanvas');
 const ctx = canvas.getContext('2d');
-const tileSize = canvas.width / 15; 
+const statusText = document.getElementById('statusText');
+const macroBtn = document.getElementById('macroBtn');
+const microBtn = document.getElementById('microBtn');
 
 let noiseSeedOffset = Math.random() * 1000;
 
@@ -79,13 +81,17 @@ function generateMicroMap(width, height) {
             let noiseVal = (noise2D((x + noiseSeedOffset) * 0.2, (y + noiseSeedOffset) * 0.2) + 1) / 2;
             
             let tileType = "floor";
+            let isIndestructible = false;
+            let isCover = false;
+
             if (noiseVal > 0.80) {
                 tileType = "scrap";
+                isCover = true;
                 potentialScraps.push({ x, y, noiseVal });
             } else if (noiseVal > 0.70) {
                 tileType = "mud";
             }
-            grid[x][y] = tileType;
+            grid[x][y] = { type: tileType, isIndestructible, isCover };
         }
     }
 
@@ -98,35 +104,50 @@ function generateMicroMap(width, height) {
             let distChebyshev = Math.max(Math.abs(candidate.x - placed.x), Math.abs(candidate.y - placed.y));
             if (distChebyshev <= 2) { tooClose = true; break; }
         }
-        if (!tooClose) { confirmedScraps.push(candidate); } 
-        else { grid[candidate.x][candidate.y] = "mud"; }
+        if (!tooClose) { 
+            confirmedScraps.push(candidate); 
+        } else { 
+            grid[candidate.x][candidate.y] = { type: "mud", isIndestructible: false, isCover: false }; 
+        }
     }
 
     for (let x = 0; x < width; x++) {
         for (let y = 0; y < height; y++) {
-            if (grid[x][y] === "mud") {
+            if (grid[x][y].type === "mud") {
                 let mudNeighbors = 0;
                 let allNeighbors = [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [1, -1], [-1, 1], [-1, -1]];
                 for (let [dx, dy] of allNeighbors) {
                     let nx = x + dx, ny = y + dy;
-                    if (nx >= 0 && nx < width && ny >= 0 && ny < height && grid[nx][ny] === "mud") {
+                    if (nx >= 0 && nx < width && ny >= 0 && ny < height && grid[nx][ny].type === "mud") {
                         mudNeighbors++;
                     }
                 }
-                if (mudNeighbors < 1) { grid[x][y] = "floor"; }
+                if (mudNeighbors < 1) { 
+                    grid[x][y] = { type: "floor", isIndestructible: false, isCover: false }; 
+                }
             }
         }
     }
+    
+    grid = injectColumns(grid, width, height);
     return grid;
 }
 
 function drawMicroMapVisual(grid) {
-    const colors = { floor: "#d3d3d3", mud: "#8b5a2b", scrap: "#ff4500", column: "#65788e" };
+    const tileSize = canvas.width / grid.length;
+    const colors = { 
+        floor: "#d3d3d3", 
+        mud: "#8b5a2b", 
+        scrap: "#ff4500", 
+        column: "#65788e", 
+        natural_wall: "#333333" 
+    };
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     for (let x = 0; x < grid.length; x++) {
         for (let y = 0; y < grid[x].length; y++) {
-            ctx.fillStyle = colors[grid[x][y]] || "#000000";
+            let tile = grid[x][y];
+            ctx.fillStyle = colors[tile.type] || "#000000";
             ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
             ctx.strokeStyle = "#222";
             ctx.strokeRect(x * tileSize, y * tileSize, tileSize, tileSize);
@@ -228,7 +249,7 @@ export function generateValidatedMacroMap(groupLevel = 1) {
     let success = isMapFullyAccessible(startNode, allNodes);
 
     return { success, allNodes, groupLevel };
-} 
+}
 
 function assignCampfiresToMacroMap(allNodes, roomCount) {
     let targetCampfires = roomCount >= 16 ? 3 : roomCount >= 10 ? 2 : roomCount >= 8 ? 1 : 0;
@@ -348,17 +369,17 @@ function injectColumns(grid, width, height, rarityChance = 0.12) {
                 {x: x, y: y}, // center 
                 {x: x, y: y - 1}, // north neighbor
                 {x: x, y: y + 1}, // south neighbor
-                {x: x - 1, y}, // west neighbor
-                {x: x + 1, y}, // east neighbor
+                {x: x - 1, y: y}, // west neighbor
+                {x: x + 1, y: y}, // east neighbor
             ];
 
-            let canPlace = crossTiles.every(t => {
+            let canPlace = crossTile.every(t => {
                 let tile = grid[t.x]?.[t.y];
                 return tile && (tile.type === "floor" || tile.type === "mud");
             });
 
             if (canPlace) {
-                for (let t of crossTiles) {
+                for (let t of crossTile) {
                     grid[t.x][t.y] = { 
                         type: "column", 
                         isIndestructible: true, 
@@ -372,10 +393,28 @@ function injectColumns(grid, width, height, rarityChance = 0.12) {
     }
     return grid;
 }
+// UI Event binding
+macroBtn.addEventListener('click', () => {
+    statusText.textContent = "Generating Macro Map...";
+    let macroData = generateValidatedMacroMap(Math.floor(Math.random() * 10) + 1);
+    drawMacroMapVisual(macroData);
+    statusText.textContent = `Macro Map Generated (Valid: ${macroData.success})`;
+});
+
+microBtn.addEventListener('click', () => {
+    statusText.textContent = "Generating Micro Map...";
+    let microGrid = generateMicroMap(15, 15);
+    drawMicroMapVisual(microGrid);
+    statusText.textContent = "Micro Map Generated (15x15)";
+});
 
 // Initial micro render on script load
 let initialMicro = generateMicroMap(15, 15);
 drawMicroMapVisual(initialMicro);
+
+// Initial macro render 
+let initialMacroData = generateValidatedMacroMap(1);
+drawMacroMapVisual(initialMacroData);
 
 /**
  * 
@@ -383,9 +422,8 @@ drawMicroMapVisual(initialMicro);
  * Enforces indestructible natural walls, scrap spawn distribution, 
  * and guaranteed 4-way perimeter accessibility via BFS validation.
  */
+
 /**
- * 
- * UPDATED
 function generateValidatedCaveMicroMap(width = 15, height = 15) {
     let grid = [];
     let maxAttempts = 50;
@@ -551,4 +589,4 @@ function drawCaveMicroMapVisual(grid) {
         }
     }
 }
- */
+*/

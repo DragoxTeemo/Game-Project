@@ -6,7 +6,7 @@ export function calculateGroupAverageLevel(party) {
     return Math.max(1, Math.round(totalLevel / party.length));
 }
 
-export function distrubuteAdjustedEXP(party, totalXpPool) {
+export function distributeAdjustedEXP(party, totalXpPool) {
     let avgLevel = calculateGroupAverageLevel(party);
 
     party.forEach(rider => {
