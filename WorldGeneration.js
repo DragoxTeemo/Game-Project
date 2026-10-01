@@ -57,7 +57,7 @@
  * ==========================================
  */
 
-
+import { generateValidatedMacroMap } from "./WorldGeneration.js";
 import { createNoise2D } from 'https://cdn.jsdelivr.net/npm/simplex-noise@4.0.1/+esm';
 const noise2D = createNoise2D();
 
@@ -70,7 +70,7 @@ const microBtn = document.getElementById('microBtn');
 let noiseSeedOffset = Math.random() * 1000;
 
 // 1. MICRO MAP GENERATION
-function generateMicroMap(width, height) {
+export function generateMicroMap(width, height) {
     let grid = [];
     let potentialScraps = [];
     noiseSeedOffset += 18.4;
@@ -133,7 +133,7 @@ function generateMicroMap(width, height) {
     return grid;
 }
 
-function drawMicroMapVisual(grid) {
+export function drawMicroMapVisual(grid) {
     const tileSize = canvas.width / grid.length;
     const colors = { 
         floor: "#d3d3d3", 

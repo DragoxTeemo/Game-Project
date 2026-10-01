@@ -63,7 +63,7 @@ function evaluateAimState(playerPos, targetPos, weapon, obstacles) {
         return "red"; // Out of range
     }
 
-    let pathTiles = getTilesAlongLine(playerPos, targetPos); // Bresenham's line algo
+    let pathTiles = TacticalEnvironment.getTilesAlongLine(playerPos, targetPos); // Bresenham's line algo
     let hasSolidBlock = false;
     let hasCover = false;
 
@@ -72,7 +72,7 @@ function evaluateAimState(playerPos, targetPos, weapon, obstacles) {
         if (obstacle) {
             if (obstacle.isSolid) {
                 hasSolidBlock = true;
-                break; // stops anymore checks
+                break; 
             } else if (obstacle.isCover) {
                 hasCover = true;
             }

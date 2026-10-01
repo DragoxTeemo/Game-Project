@@ -207,7 +207,12 @@ export const DialogueSystem = {
             } 
         }
 
-        let linePool = characterPool[category] || characterPool.benchedSaving;
+        let linePool = (characterPool[category] && characterPool[category].length > 0) 
+            ? characterPool[category] 
+            : (characterPool.benchedSaving && characterPool.benchedSaving.length > 0) 
+                ? characterPool.benchedSaving 
+                : ["Let's Move!"];
+
         let randomIndex = Math.floor(Math.random() * linePool.length);
         return linePool[randomIndex];
     },

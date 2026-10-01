@@ -1,5 +1,7 @@
 import { DialogueSystem } from "./dialogue.js";
-import { generateValidatedMacroMap } from "./worldGenerator.js";
+import { generateValidatedMacroMap } from "./WorldGeneration.js";
+import { generateMicroMap, drawMicroMapVisual, drawMacroMapVisual } from "./microMapGenerator.js"; // Adjust filename as needed
+
 // Initialize narrative system on load
 DialogueSystem.init();
 

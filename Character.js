@@ -1,5 +1,5 @@
-class MaskedRider {
-    Character(name, codename, coefficients, weights) {
+export class MaskedRider {
+    constructor(name, codename, coefficients, weights) {
         this.name = name;
         this.codename = codename;
 
@@ -9,7 +9,7 @@ class MaskedRider {
         this.a = coefficients.a;
         this.b = coefficients.b;
         this.c = coefficients.c;
-        this.weights = weights // {hp: 0.4, strength: 0.15, ...}
+        this.weights = weights || { strength: 1, defense: 1, magic: 1, ward: 1, speed: 1 }; // {hp: 0.4, strength: 0.15, ...}
 
         this.strength = 10;
         this.defense = 10;
@@ -27,13 +27,13 @@ class MaskedRider {
      */
 
     move(gridCoordinates) {
-        console.log(`${this.codename} moves accross the grid based on speed: ${this.speed}`)
+        console.log(`${this.codename} moves across the grid based on speed: ${this.speed}`);
     }
 
     getXpRequirementPerLevel(targetLevel) {
         let x = targetLevel;
-        let totalXp = (this.a * Math.pow(x, 3) + (this.b * Math.pow(x,2) + (this.c * x)))
-        return Math.floor(totalXp)
+        let totalXp = (this.a * Math.pow(x, 3) + (this.b * Math.pow(x, 2) + (this.c * x)));
+        return Math.floor(totalXp);
     } 
 
     gainXp(amount) {
@@ -53,11 +53,11 @@ class MaskedRider {
     calculateStatGrowth() {
         // Regular 1-99 Stat Pool for Attributes (Strength, Defense, Magic, Ward, Speed)
         let statPool = Math.min(99, Math.floor((this.a * Math.pow(this.level, 3) + this.b * Math.pow(this.level, 2) + this.c * this.level) / 1000) + 10);
-        this.strength = Math.min(99, Math.max(1, Math.floor(statPool * this.weights.strength)));
-        this.defense = Math.min(99, Math.max(1, Math.floor(statPool * this.weights.strength)));
-        this.magic = Math.min(99, Math.max(1, Math.floor(statPool * this.weights.strength)));
-        this.ward = Math.min(99, Math.max(1, Math.floor(statPool * this.weights.strength)));
-        this.speed = Math.min(99, Math.max(1, Math.floor(statPool * this.weights.strength)));
+        this.strength = Math.min(99, Math.max(1, Math.floor(statPool * (this.weights.strength || 1))));
+        this.defense = Math.min(99, Math.max(1, Math.floor(statPool * (this.weights.defense || 1))));
+        this.magic = Math.min(99, Math.max(1, Math.floor(statPool * (this.weights.magic || 1))));
+        this.ward = Math.min(99, Math.max(1, Math.floor(statPool * (this.weights.ward || 1))));
+        this.speed = Math.min(99, Math.max(1, Math.floor(statPool * (this.weights.speed || 1))));
 
         // HP Scaling using the same cubic curve; dividing by 2200 yields a more balanced amount of hp for all characters
         let rawHpCurve = (this.a * Math.pow(this.level, 3) + this.b * Math.pow(this.level, 2) + this.c * this.level);
@@ -65,17 +65,5 @@ class MaskedRider {
 
         //HP cap is 999
         this.maxHp = Math.min(999, calculateHp);
-    }
-}
-
-class Virus {
-    Enemy(title, weight) {
-        
-    }
-}
-
-class Antagonist {
-    Villain() {
-        
     }
 }
