@@ -145,10 +145,11 @@ export class Virus {
 
     evaluateActionScore(action, target, party, allies) {
         // Placeholder scoring logic
-        let score = action.action.baseDamage || 0;
+        let score = action.action.basePower ?? action.action.power ?? 0;
 
         //Target Health Exploitation (Execute low-HP heroes)
-        const targetHpPercentage = target.hp / target.maxHP;
+        let targetMaxHp = target.maxHp ?? target.maxHP ?? 1;
+        const targetHpPercentage = target.hp / targetMaxHp;
         if (targetHpPercentage < 0.3) {
             score += 30; // Prioritize low HP targets
         }
@@ -163,7 +164,6 @@ export class Virus {
             if (target.immunities?.includes(action.elements)) {
                 score -= 50; // Heavy penalty for immunity
             }
-
         }
         
         //Archetype persona adjustments

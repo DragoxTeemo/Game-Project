@@ -1,12 +1,14 @@
+
 import { MiniGameSystem } from "./minigame.js";
 import { CombatAction } from "./actions.js";
 import { evaluateAimState, calculateHitProb, executeAceGreatSword } from "./tactics.js";
+import { CombatMath } from "./combatMath.js";
 
 export function executeWeaponAttack(attacker, primaryTarget, weapon, obstacles, grid, enemiesInRoom, aimDirection) {
     let aimState = "white";
     let isCovered = false;
 
-    // 1. Evaluate Aim / Cover State for Ranged Weapons
+    // Evaluate Aim / Cover State for Ranged Weapons
     if (weapon.scope === "SINGLE" && weapon.type === "FIREARM") {
         aimState = evaluateAimState(attacker.position, primaryTarget.position, weapon, obstacles);
         if (aimState === "red") {
@@ -15,7 +17,7 @@ export function executeWeaponAttack(attacker, primaryTarget, weapon, obstacles, 
         isCovered = (aimState === "yellow");
     }
 
-    // 2. Resolve Minigames using your complete MiniGameSystem architecture
+    // Resolve Minigames using your complete MiniGameSystem architecture
     let minigameResult = { multiplier: 1.0, text: "Hit!" };
     
     switch (weapon.minigameType) {
@@ -41,7 +43,7 @@ export function executeWeaponAttack(attacker, primaryTarget, weapon, obstacles, 
             break;
     }
 
-    // 3. Execute Grid Interaction (Cone AOE vs Single Target)
+    // Execute Grid Interaction (Cone AOE vs Single Target)
     let hitResults = { enemiesDamaged: 0, scrapDestroyed: 0 };
     
     if (weapon.scope === "AOE_CONE") {
@@ -49,7 +51,8 @@ export function executeWeaponAttack(attacker, primaryTarget, weapon, obstacles, 
     } else {
         let hitChance = calculateHitProb(attacker, primaryTarget);
         if (Math.random() <= hitChance && minigameResult.multiplier > 0) {
-            let finalDamage = Math.floor(weapon.basePower * minigameResult.multiplier);
+            let rawDamage = CombatMath.calculatePhysicalDamage(attacker, primaryTarget, weapon.basePower);
+            let finalDamage = Math.floor(rawDamage * minigameResult.multiplier);
             primaryTarget.hp -= finalDamage;
             hitResults.enemiesDamaged = 1;
         }
@@ -57,7 +60,7 @@ export function executeWeaponAttack(attacker, primaryTarget, weapon, obstacles, 
 
     let action = new CombatAction(
         weapon.name,
-        weapon.type === "FIREARM" ? "Magic" : "Physical",
+        "Physical", // All weapon attacks (melee and firearm) resolve as strength vs defense via CombatMath
         attacker.currentElement || "Physical",
         weapon.basePower,
         weapon.scope,

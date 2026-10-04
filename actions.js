@@ -19,12 +19,13 @@
 
 // An executed skill instance which will be processed by an engine during a turn
 export class CombatAction {
-    constructor(name, type, element, power, scope, range = 1) {
+    constructor(name, type, element, power, scope, range = 1, magicCost = 0) {
         this.name = name;           // "Shotgun", "Ice Spike", "Whip Strike"
         this.type = type;           // "Physical" (strength/defense) or "Magic" (magic/ward)
         this.element = element;     // Elements.FIRE.name (and other elements) or Elements.PHYSICAL.name (not an element but is effectively no different)
         this.power = power;         // (Base Power that's not counting the strength/magic against defense/ward)
         this.scope = scope;         // AOE (Has a certain range like a radius of 4+ (character movement in average is 4)) vs Single Target 
         this.range = range;         // For single target for how far the attack is
+        this.magicCost = magicCost; // Shared mana; physical attack doesn't consume mana
     }
 }
