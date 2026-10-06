@@ -14,6 +14,10 @@ export class MagicSpell {
 }
 
 export const Spells = {
+    ECHO:{
+         SINGLE: new MagicSpell ("Fire Blade", Elements.FIRE.name, 40, "SINGLE", 15, 4),
+         ACE: new MagicSpell("Thunder Spear", Elements.LIGHTNING.name, 40, "ACE", 15, 4)
+    },
     ACE: {  
         SINGLE: new MagicSpell("Ice Spike", Elements.ICE.name, 40, "SINGLE", 15, 4),
         AOE: new MagicSpell("Frost Tree", Elements.ICE.name, 40, "AOE", 35, 2)
@@ -29,5 +33,9 @@ export const Spells = {
     STRIKE: {
         SINGLE: new MagicSpell("Wind Slice", Elements.WIND.name, 40, "SINGLE", 10, 4),
         AOE: new MagicSpell("Wind Explosion", Elements.WIND.name, 40, "AOE", 20, 5)
+    },
+    STAR:{
+            SINGLE: new MagicSpell("Shadow Force", Elements.SHADOW.name, 40, "SINGLE", 15, 4),
+            AOE: new MagicSpell("Lightbringer", Elements.LIGHT.name, 40, "AOE", 35, 5)
     }
 }
