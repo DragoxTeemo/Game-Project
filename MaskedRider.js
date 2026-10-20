@@ -8,6 +8,7 @@
  *Cody/Echo: a = 1, b = 14, c = 25
  *Ex: Level 99 = 1(99)^3 + 14(99)^2 + 25(99) =  1,109,988
 
+ *Echo: a = 1.3, b = 12, c = 20
  *Ethan/Ace: a = 1.2, b = 15, c = 10
  *Rebecca/BlazE: a = .7, b = 12, c = 40
  *Kira/Rose: a = .8, b = 13, c = 30
