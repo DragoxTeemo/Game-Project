@@ -25,7 +25,9 @@ const DEFAULT_ACTION_KEYS = {
 // The controller can be attached to a specific event target (like the window) to handle key events, 
 // and it maintains a set of interactable objects that the player can interact with when in range.
 export class GameplayController {
-	constructor({ player, startPosition = { x: 0, y: 0 }, bounds = null, interactionRange = 1, onMove = () => {}, onInteract = () => {}, onCommunicate = null, onOpenSettings = null, onUsePower = null, onUseWeapon = null, actionKeys = {} } = {}) {
+	constructor({ player = null, director = null, startPosition = { x: 0, y: 0 }, bounds = null, interactionRange = 1, onMove = () => {}, onInteract = () => {}, onCommunicate = null, onOpenSettings = null, onUsePower = null, onUseWeapon = null, actionKeys = {} } = {}) {
+		this.director = director;
+		player = player || director?.party?.[0];
 		if (!player) {
 			throw new TypeError("GameplayController requires a player.");
 		}
@@ -211,7 +213,10 @@ export class GameplayController {
 		return this.runAction("onUsePower", "usePower", event);
 	}
 
-	useWeapon(event) {
+useWeapon(event) {
+		if (typeof this.actionHandlers.onUseWeapon !== "function" && typeof this.director?.queuePlayerAction === "function") {
+			return this.director.queuePlayerAction(this.player, this.player.equippedWeapon);
+		}
 		return this.runAction("onUseWeapon", "useWeapon", event);
 	}
 
@@ -231,4 +236,11 @@ export class GameplayController {
 
 		return this.player[playerMethod](this, event) ?? true;
 	}
+}
+
+export function createGameplaySession(riderKeys, controllerOptions = {}) {
+	const director = new GameDirector();
+	director.initializeParty(riderKeys);
+	const controller = new GameplayController({ ...controllerOptions, director });
+	return { director, controller };
 }
