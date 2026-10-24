@@ -2,9 +2,9 @@ import {Elements} from "./elements";
 
 //Placeholder names
 export const FoeArchetypes = {
-    BOKOBOLIN: "Bokobolin", // Basic threat
-    MOBLIN:    "Moblin",    // Juggernaut threat
-    LIZALFOS:  "Lizalfos"   // Range focus threat
+    VIRION: "Virions", // Basic threat
+    CYTOPATH: "Cytopaths",    // Juggernaut threat
+    AIRBORNE: "Airbornes"   // Range focus threat
 };
 
 // Using BOTW Color system as a simple way to show strength, a potential idea is less of the main color and focus
