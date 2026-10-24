@@ -19,12 +19,23 @@ export class GameDirector {
         this.combatEnded = false; 
         this.currentGroupLevel = 1; 
         this.gameState = "MAP_EXPLORATION"; // MAP_EXPLORATION, COMBAT, CUTSCENE
+        this.pendingPlayerActions = new Map();
     }
 
     initializeParty(riderKeys) {
         this.party = riderKeys.map(key => {
-            let registryData = MaskedRiderRegistry[key];
-            let rider = new MaskedRider(key, registryData);
+            const registryData = MaskedRiderRegistry[key];
+            if (!registryData) {
+                throw new RangeError(`Unknown character key: ${key}`);
+            }
+            const rider = new MaskedRider(
+                registryData.name,
+                registryData.codename,
+                registryData.coefficients,
+                registryData.weights,
+                registryData.weapon
+            );
+            rider.id = key;
             rider.faction = "hero"; // buildTurnQueue's tie-break and by the dispatcher
             return rider;
         });
@@ -44,6 +55,7 @@ export class GameDirector {
         this.combatEnded = false; 
         this.heroMana.reset();
         this.villainMana.reset();
+        this.pendingPlayerActions.clear();
         this.updateGroupLevel();
         this.activeEnemies = EncounterDirector.generateRoomEncounter(this.currentGroupLevel);
         this.activeEnemies.forEach(enemy => {enemy.faction = "villain"});
@@ -110,7 +122,7 @@ export class GameDirector {
                 console.log(`${actor.codename} is waiting on a player action (input handler not yet wired up).`);
                 return;
             }
-            this.resolveAction(actor, queuedAction.item, queuedAction.target, manaPool, queuedAction.targetPool);
+            this.resolveAction(actor, queueAction.item, queueAction.target, manaPool, queueAction.targetPool);
         } else {
             let availableActions = getFoeAvailableActions(actor.archetype);
             let choice = actor.chooseAction(this.party, this.activeEnemies, availableActions);
@@ -131,7 +143,28 @@ export class GameDirector {
     // Returns null until that's built, which is why hero turns currently no-op.
 
     getQueuePlayerAction(actor) {
-        return null;
+          const queuedAction = this.pendingPlayerActions.get(actor) || null;
+        this.pendingPlayerActions.delete(actor);
+        return queuedAction;
+    }
+
+    queuePlayerAction(actor, item = actor?.equippedWeapon, target = null) {
+        if (this.gameState !== "COMBAT" || !this.party.includes(actor) || !item) {
+            return false;
+        }
+
+        const validTargets = this.activeEnemies.filter(enemy => enemy.hp > 0 && !enemy.isDefeated);
+        target = target || validTargets[0];
+        if (!target || !validTargets.includes(target)) {
+            return false;
+        }
+
+        this.pendingPlayerActions.set(actor, {
+            item,
+            target,
+            targetPool: this.activeEnemies
+        });
+        return true;
     }
 
 
