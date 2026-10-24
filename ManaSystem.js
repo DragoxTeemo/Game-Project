@@ -23,7 +23,7 @@ export class SharedManaPool {
     }
 
     canAfford(amount) {
-        return this.amount >= amount;
+        return this.current >= amount;
     }
 
     spend(amount) {
