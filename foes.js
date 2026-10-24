@@ -123,6 +123,24 @@ export class Virus {
         }
         return {type: "NORMAL", multiplier: 1.0, message: ""};
     }
+
+        getCombatSummary() {
+        return {
+            title: this.title,
+            archetype: this.archetype,
+            difficulty: this.tier,
+            level: this.level,
+            durability: {
+                currentHP: this.hp,
+                maxHP: this.maxHP,
+                percentage: Math.floor((this.hp / this.maxHP) * 100)
+            },
+            weaknesses: [...this.weaknesses],
+            resistances: [...this.resistances],
+            immunities: [...this.immunities]
+        };
+    }
+    
     chooseAction (party, allies, availableActions) {
         // Placeholder logic for choosing an action
         let bestAction = null;
