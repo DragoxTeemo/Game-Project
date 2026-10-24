@@ -92,9 +92,9 @@ export class Virus {
         const tierData = entry.tiers[this.tier] || entry.tiers[FoeTiers.RED];
 
         const archetypeMultipliers = {
-            [FoeArchetypes.BOKOBOLIN]: 1.0,
-            [FoeArchetypes.LIZALFOS]:  1.2,
-            [FoeArchetypes.MOBLIN]:    1.5
+            [FoeArchetypes.VIRIONS]: 1.0,
+            [FoeArchetypes.CYTOPATHS]:  1.2,
+            [FoeArchetypes.AIRBORNES]:    1.5
         };
 
         let multiplier = archetypeMultipliers[this.archetype] || 1.0;
@@ -168,10 +168,14 @@ export class Virus {
         
         //Archetype persona adjustments
         if (this.archetype === FoeArchetypes.LIZALFOS && target.isBackline && action.action.type === "RANGED") {
-            score += 20; // LIZALFOS favor ranged attacks
+            score += 20; // VIRIONS favor ranged attacks
         }
-        if (this.archetype === FoeArchetypes.MOBLIN && target.isPrimaryDamageDealer && action.action.type === "MAGIC") {
-            score += 20; // MOBLINs favor magic attacks
+        if (this.archetype === FoeArchetypes.MOBLIN && target.isPrimaryDamageDealer && action.action.type === "MELEE") {
+            score += 20; // Cytopaths favor magic attacks
+        }
+
+        if (this.archetype === FoeArchetypes.AIRBORNE && target.isPrimaryDamageDealer && action.action.type === "MAGIC") {
+            score += 20; // Airbornes favor magic attacks
         }
 
         //Low Health Self-Preservation
