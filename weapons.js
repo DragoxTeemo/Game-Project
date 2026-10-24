@@ -31,7 +31,8 @@ export const CHARACTER_WEAPONS = {
     BLAZE_AR: new CharacterWeapon("Assault Rifle", WeaponType.RANGED_GUN, 50, 8, "SINGLE", "RNG"), 
     BLAZE_SHOTGUN: new CharacterWeapon("Shotgun", WeaponType.RANGED_GUN, 80, 3, "AOE_CONE", "RNG"), 
     ROSE: new CharacterWeapon("Plasma Whip", WeaponType.WHIP, 45, 3, "AOE", "TIME_Bar"),
-    STRIKE: new CharacterWeapon("Gauntlet")
+    STRIKE: new CharacterWeapon("Pulse Gauntlets", WeaponType.GAUNTLET, 40, 1, "SINGLE", "SPAM"),
+    STAR: new CharacterWeapon("Dragon Claws", WeaponType.DRAGON_CLAW, 55, 1, "SINGLE", "TIMING")
 
 
 }
