@@ -1,4 +1,4 @@
-iimport { CombatMath } from "./Combatmath.js";
+import { CombatMath } from "./Combatmath.js";
 
 // This function executes a weapon attack from an attacker to a target or targets based on the weapon's scope and properties.
 export function executeSpellCast(caster, target, spell, manaPool, targetPool = []) {
