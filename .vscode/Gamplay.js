@@ -1,3 +1,5 @@
+import { GameDirector } from "./GameDirector.js";
+
 const MOVEMENT_KEYS = {
 	arrowup: { x: 0, y: -1 },
 	w: { x: 0, y: -1 },
