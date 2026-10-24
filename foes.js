@@ -17,7 +17,7 @@ export const FoeTiers = {
 };
 
 export const MasterFoeRegistry = {
-    [FoeArchetypes.BOKOBOLIN]: {
+    [FoeArchetypes.AIRBORNE]: {
         baseStats: { hp: 1.0, str: 1.0, def: 1.0, mag: 1.0, wrd: 1.0, spd: 1.0 },
         tiers: {
             [FoeTiers.RED]:    { cost: 1, minLevel: 1,  xpMin: 45,   xpMax: 140,  tierMult: 1.0, profile: {weak: [Elements.FIRE.name, Elements.LIGHTNING.name], resist: [], immune: []} },
@@ -26,7 +26,7 @@ export const MasterFoeRegistry = {
             [FoeTiers.SILVER]: { cost: 7, minLevel: 42, xpMin: 1200, xpMax: 2500, tierMult: 2.00, profile: {weak: [Elements.LIGHT.name], resist: [], immune: [Elements.SHADOW.name, Elements.FIRE.name]} }
         }
     },
-    [FoeArchetypes.LIZALFOS]: {
+    [FoeArchetypes.VIRION]: {
         baseStats: { hp: 1.1, str: 1.1, def: 0.8, mag: 1.2, wrd: 0.8, spd: 1.3 },
         tiers: {
             [FoeTiers.RED]:    { cost: 2, minLevel: 2,  xpMin: 75,   xpMax: 160,  tierMult: 1.0, profile: {weak: [Elements.LIGHTNING.name, Elements.WIND.name], resist: [], immune: []} },
@@ -35,7 +35,7 @@ export const MasterFoeRegistry = {
             [FoeTiers.SILVER]: { cost: 8, minLevel: 46, xpMin: 1500, xpMax: 3000, tierMult: 2.00, profile: {weak: [Elements.SHADOW.name], resist: [], immune: [Elements.LIGHTNING.name, Elements.FIRE.name]} }
         }
     },
-    [FoeArchetypes.MOBLIN]: {
+    [FoeArchetypes.CYTOPATH]: {
         baseStats: { hp: 1.2, str: 1.3, def: 1.1, mag: 0.8, wrd: 1.1, spd: 0.6 },
         tiers: {
             [FoeTiers.RED]:    { cost: 3, minLevel: 4,  xpMin: 110,  xpMax: 210,  tierMult: 1.0, profile: {weak: [Elements.ICE.name, Elements.WIND.name], resist: [], immune: []} },
