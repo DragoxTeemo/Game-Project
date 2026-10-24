@@ -1,4 +1,4 @@
-import {Elements} from "./elements";
+import {Elements} from "./elements.js";
 
 //Placeholder names
 export const FoeArchetypes = {
