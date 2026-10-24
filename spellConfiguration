@@ -1,0 +1,42 @@
+iimport { CombatMath } from "./Combatmath.js";
+
+// This function executes a weapon attack from an attacker to a target or targets based on the weapon's scope and properties.
+export function executeSpellCast(caster, target, spell, manaPool, targetPool = []) {
+    if (!caster || !spell || !Number.isFinite(spell.magicCost)) {
+        return { success: false, reason: "A valid caster and spell are required." };
+    }
+    if (!manaPool?.canAfford(spell.magicCost)) {
+        return { success: false, reason: "Not enough mana." };
+    }
+
+// Determine the targets based on the spell's scope
+    const candidates = spell.scope === "SINGLE" || spell.scope === "Single"
+        ? [target]
+        : targetPool;
+    const targets = candidates.filter(unit => unit && unit.hp > 0 && !unit.isDefeated);
+    if (targets.length === 0) {
+        return { success: false, reason: "No valid targets." };
+    }
+    manaPool.spend(spell.magicCost);
+
+// Calculate damage for each target based on the spell's base power and the target's elemental resistances or vulnerabilities
+    const hits = targets.map(unit => {
+        const effect = unit.evaluateElementalEffect?.(spell.element) || { multiplier: 1 };
+        const rolledDamage = effect.multiplier === 0
+            ? 0
+            : CombatMath.calculateMagicDamage(caster, unit, spell.basePower) * effect.multiplier;
+        const damage = Math.max(0, Math.floor(rolledDamage));
+        unit.hp = Math.max(0, unit.hp - damage);
+        if (unit.hp === 0) unit.isDefeated = true;
+        return { target: unit, damage, effect: effect.type || "NORMAL" };
+    });
+    
+ // Return the result of the spell cast, including whether it was successful, 
+ // how much mana was spent, total damage dealt, and details of each hit
+    return {
+        success: true,
+        manaSpent: spell.magicCost,
+        damage: hits.reduce((total, hit) => total + hit.damage, 0),
+        hits
+    };
+}
