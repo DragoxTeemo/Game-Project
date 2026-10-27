@@ -1,10 +1,10 @@
-import { MaskedRiderRegistry } from "./riderConfig";
-import { MaskedRider } from "./MaskedRider";
-import { EncounterDirector, calculateGroupAverageLevel, distributeAdjustedEXP } from "./EncounterDirector";
-import { SharedManaPool } from "./manaSystem";
-import { executeWeaponAttack } from "./weaponExecutionEngine";
-import { executeSpellCast } from "./spellExecutionEngine";
-import { getFoeAvailableActions } from "./foeSpells";
+import { MaskedRiderRegistry } from "./riderConfig.js";
+import { MaskedRider } from "./MaskedRider.js";
+import { EncounterDirector, calculateGroupAverageLevel, distributeAdjustedEXP } from "./EncounterDirector.js";
+import { SharedManaPool } from "./ManaSystem.js";
+import { executeWeaponAttack } from "./weaponExecutionEngine.js";
+import { executeSpellCast } from "./spellExecutionEngine.js";
+import { getFoeAvailableActions } from "./foeSpells.js";
 
 
 
