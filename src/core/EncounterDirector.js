@@ -1,4 +1,4 @@
-import { Virus, MasterFoeRegistry } from "./foes";
+import { Virus, MasterFoeRegistry } from "./foes.js";
 
 export function calculateGroupAverageLevel(party) {
     if (!party || party.length === 0) return 1;

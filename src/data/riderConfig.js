@@ -1,6 +1,6 @@
-import { Elements } from "./elements";
-import { StarForms } from "./aliceForms";
-import { EchoForms } from "./echoForms";
+import { Elements } from "./elements.js";
+import { StarForms } from "./aliceForms.js";
+import { EchoForms } from "./echoForms.js";
 
 export const MaskedRiderRegistry = {
     ECHO: {

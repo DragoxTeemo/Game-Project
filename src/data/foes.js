@@ -1,17 +1,10 @@
 import {Elements} from "./elements";
 
-export const ActionType = {
-    PHYSICAL: "Physical",
-    MAGIC: "Magic",
-    RANGED: "Ranged",
-    HEAL: "Heal"
-}
-
 //Placeholder names
 export const FoeArchetypes = {
-    BOKOBOLIN: "Bokobolin", // Basic threat
-    MOBLIN:    "Moblin",    // Juggernaut threat
-    LIZALFOS:  "Lizalfos"   // Range focus threat
+    VIRION: "Virions", // Basic threat
+    CYTOPATH: "Cytopaths",    // Juggernaut threat
+    AIRBORNE: "Airbornes"   // Range focus threat
 };
 
 // Using BOTW Color system as a simple way to show strength, a potential idea is less of the main color and focus
@@ -24,7 +17,7 @@ export const FoeTiers = {
 };
 
 export const MasterFoeRegistry = {
-    [FoeArchetypes.BOKOBOLIN]: {
+    [FoeArchetypes.AIRBORNE]: {
         baseStats: { hp: 1.0, str: 1.0, def: 1.0, mag: 1.0, wrd: 1.0, spd: 1.0 },
         tiers: {
             [FoeTiers.RED]:    { cost: 1, minLevel: 1,  xpMin: 45,   xpMax: 140,  tierMult: 1.0, profile: {weak: [Elements.FIRE.name, Elements.LIGHTNING.name], resist: [], immune: []} },
@@ -33,7 +26,7 @@ export const MasterFoeRegistry = {
             [FoeTiers.SILVER]: { cost: 7, minLevel: 42, xpMin: 1200, xpMax: 2500, tierMult: 2.00, profile: {weak: [Elements.LIGHT.name], resist: [], immune: [Elements.SHADOW.name, Elements.FIRE.name]} }
         }
     },
-    [FoeArchetypes.LIZALFOS]: {
+    [FoeArchetypes.VIRION]: {
         baseStats: { hp: 1.1, str: 1.1, def: 0.8, mag: 1.2, wrd: 0.8, spd: 1.3 },
         tiers: {
             [FoeTiers.RED]:    { cost: 2, minLevel: 2,  xpMin: 75,   xpMax: 160,  tierMult: 1.0, profile: {weak: [Elements.LIGHTNING.name, Elements.WIND.name], resist: [], immune: []} },
@@ -42,7 +35,7 @@ export const MasterFoeRegistry = {
             [FoeTiers.SILVER]: { cost: 8, minLevel: 46, xpMin: 1500, xpMax: 3000, tierMult: 2.00, profile: {weak: [Elements.SHADOW.name], resist: [], immune: [Elements.LIGHTNING.name, Elements.FIRE.name]} }
         }
     },
-    [FoeArchetypes.MOBLIN]: {
+    [FoeArchetypes.CYTOPATH]: {
         baseStats: { hp: 1.2, str: 1.3, def: 1.1, mag: 0.8, wrd: 1.1, spd: 0.6 },
         tiers: {
             [FoeTiers.RED]:    { cost: 3, minLevel: 4,  xpMin: 110,  xpMax: 210,  tierMult: 1.0, profile: {weak: [Elements.ICE.name, Elements.WIND.name], resist: [], immune: []} },
@@ -101,9 +94,9 @@ export class Virus {
         const tierData = entry.tiers[this.tier] || entry.tiers[FoeTiers.RED];
 
         const archetypeMultipliers = {
-            [FoeArchetypes.BOKOBOLIN]: 1.0,
-            [FoeArchetypes.LIZALFOS]:  1.2,
-            [FoeArchetypes.MOBLIN]:    1.5
+            [FoeArchetypes.VIRIONS]: 1.0,
+            [FoeArchetypes.CYTOPATHS]:  1.2,
+            [FoeArchetypes.AIRBORNES]:    1.5
         };
 
         let multiplier = archetypeMultipliers[this.archetype] || 1.0;
@@ -132,8 +125,8 @@ export class Virus {
         }
         return {type: "NORMAL", multiplier: 1.0, message: ""};
     }
-
-    chooseAction(party, allies, availableActions) {
+    chooseAction (party, allies, availableActions) {
+        // Placeholder logic for choosing an action
         let bestAction = null;
         let bestScore = -Infinity;
         let bestTarget = null;
@@ -194,12 +187,17 @@ export class Virus {
         }
         
         //Archetype persona adjustments
-        const actionType = actionObj.type?.toLowerCase();
-        if (this.archetype === FoeArchetypes.LIZALFOS && target.isBackline && actionType === ActionType.RANGED.toLowerCase()) {
-            score += 20; 
+        if (this.archetype === FoeArchetypes.LIZALFOS && target.isBackline && action.action.type === "RANGED") {
+            score += 20; // LIZALFOS favor ranged attacks
         }
-        if (this.archetype === FoeArchetypes.MOBLIN && target.isPrimaryDamageDealer && actionType === ActionType.MAGIC.toLowerCase()) {
-            score += 20; 
+        if (this.archetype === FoeArchetypes.MOBLIN && target.isPrimaryDamageDealer && action.action.type === "MAGIC") {
+            score += 20; // MOBLINs favor magic attacks
+        }
+
+        //Low Health Self-Preservation
+        const selfHpPercentage = this.hp / this.maxHP;
+        if (selfHpPercentage < 0.3 && action.action.type === "HEAL") {
+            score += 50; // Prioritize healing when low HP
         }
 
         //Add slight random variance so that AI isn't 100% deterministic

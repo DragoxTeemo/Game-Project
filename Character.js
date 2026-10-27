@@ -22,6 +22,42 @@ export class MaskedRider {
         this.isDefeated = false;
     }
 
+      equipWeapon(weapon) {
+        this.equippedWeapon = weapon;
+    }
+
+    getCharacterSummary() {
+        const weapon = this.equippedWeapon;
+
+        return {
+            name: this.name,
+            codename: this.codename,
+            level: this.level,
+            experience: this.xp,
+            durability: {
+                currentHP: this.hp,
+                maxHP: this.maxHp,
+                percentage: Math.floor((this.hp / this.maxHp) * 100)
+            },
+            stats: {
+                strength: this.strength,
+                defense: this.defense,
+                magic: this.magic,
+                ward: this.ward,
+                speed: this.speed
+            },
+            weapon: weapon ? {
+                name: weapon.name,
+                type: weapon.type,
+                basePower: weapon.basePower,
+                range: weapon.range,
+                scope: weapon.scope,
+                minigameType: weapon.minigameType
+            } : null
+        };
+    }
+
+
     /**
      * The goal here is to set the speed speed based on the stats
      */

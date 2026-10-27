@@ -1,4 +1,4 @@
-import { Elements } from "./elements";
+import { Elements } from "./elements.js";
 
 //similar to weapon.js
 export class MagicSpell {
