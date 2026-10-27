@@ -18,7 +18,6 @@ import { Elements } from "./elements";
 
 export class MaskedRider {
     constructor(id, registryData) {
-    //constructor(name, codename, coefficients, weights, elements = null, statAffinities = null) {
         this.id = id;
         this.name = registryData.name;
         this.codename = registryData.codename;
@@ -34,12 +33,10 @@ export class MaskedRider {
         this.b = this.coefficients.b;
         this.c = this.coefficients.c;
         
-
         this.curvePowerFactor = this.calculateCurvePower();// Automatically derive growth modifier from the cubic coefficients
         this.baseElement = registryData.elements || Elements.PHYSICAL.name;
         this.elements = this.baseElement;
-        this.allowedElements = registryData.allowedElements || null;// Store allowed list
-    
+        this.allowedElements = registryData.allowedElements || null; // Store allowed list
 
         if (registryData.forms) {
             this.hasForms = true;
@@ -60,7 +57,7 @@ export class MaskedRider {
                 magic: 1.0, 
                 ward: 1.0, 
                 speed: 1.0
-            }; //If not provided, default to standard weight
+            };
         }
 
         // Visible public stats starting at the universal baseline
@@ -80,8 +77,8 @@ export class MaskedRider {
             speed: baseStatBaseline * 1.0
         };
 
-        let rawCurveAtLevel1 = this.getXpRequirementPerLevel(1);
-        this.maxHp = Math.floor(rawCurveAtLevel1 / 150) + 20; //To scale based on character coefficients
+        // Use unified HP formula starting at level 1
+        this.maxHp = this.calculateMaxHpForLevel(1);
         this.hp = this.maxHp;
 
         this.isDefeated = false;
@@ -112,7 +109,7 @@ export class MaskedRider {
     transform(formKey) {
         if (!this.hasForms || !this.forms[formKey]) return false;
 
-        this.activeFormKey= formKey;
+        this.activeFormKey = formKey;
         let targetForm = this.forms[formKey];
 
         this.statAffinities = targetForm.statWeight;
@@ -135,11 +132,23 @@ export class MaskedRider {
     getXpRequirementPerLevel(targetLevel) {
         let x = targetLevel;
         return Math.floor(this.a * Math.pow(x, 3) + this.b * Math.pow(x, 2) + this.c * x);
-    } 
+    }
+
+    /**
+     * Unified HP calculation based on growth curve to prevent sudden level 1 to level 2 leaps
+     */
+    calculateMaxHpForLevel(targetLevel) {
+        let rawCurve = (this.a * Math.pow(targetLevel, 3) + this.b * Math.pow(targetLevel, 2) + this.c * targetLevel);
+        // Using a smooth progressive scaling factor for max HP across all levels
+        let calculatedHp = Math.floor(rawCurve / 2200) + 50; 
+        return Math.min(999, Math.max(20, calculatedHp));
+    }
 
     gainXp(amount) {
+        if (this.level >= 99) return; // Prevent gaining XP once max level is reached
+
         this.xp += amount;
-        while (this.xp >= this.getXpRequirementPerLevel(this.level + 1)) {
+        while (this.level < 99 && this.xp >= this.getXpRequirementPerLevel(this.level + 1)) {
             this.level++;
 
             let oldMaxHp = this.maxHp;
@@ -147,6 +156,10 @@ export class MaskedRider {
             let hpGain = this.maxHp - oldMaxHp;
             this.hp = Math.min(this.maxHp, this.hp + Math.max(0, hpGain));
             console.log(`${this.codename} leveled up to level ${this.level}`);
+        }
+
+        if (this.level >= 99) {
+            this.level = 99;
         }
     }
 
@@ -159,21 +172,18 @@ export class MaskedRider {
         this.ward     = this.updateSingleStat('ward', baseScaling);
         this.speed    = this.updateSingleStat('speed', baseScaling);
 
-        let rawCurve = (this.a * Math.pow(this.level, 3) + this.b * Math.pow(this.level, 2) + this.c * this.level);
-        let calculateHp = Math.floor(rawCurve / 2200) + 50; 
-        this.maxHp = Math.min(999, calculateHp);
+        this.maxHp = this.calculateMaxHpForLevel(this.level);
     }
 
     updateSingleStat(statName, baseScaling) {
         let affinity = this.statAffinities[statName] || 1.0;
-
         
         let levelProgressRatio = this.level / 99; // RPG style growth to prevent characters from hitting 99 in certain stats through leveling alone
         let diminishingFactor = 1.0 - (levelProgressRatio * 0.6); // Growth slows by up to 60%
 
-        let growthIncrement = baseScaling * this.curvePowerFactor * affinity * diminishingFactor; // Growth increment combines: Base Scaling * Character's Curve Power * Specific Stat Affinity
-        this.statAccumulators[statName] += growthIncrement; // Add to background accumulator
-        return Math.min(99, Math.floor(this.statAccumulators[statName])); // Return whole integer floor, ensuring stats never drop below baseline 10 reaches around 50-70 depending on affinities
+        let growthIncrement = baseScaling * this.curvePowerFactor * affinity * diminishingFactor; 
+        this.statAccumulators[statName] += growthIncrement; 
+        return Math.min(99, Math.floor(this.statAccumulators[statName])); 
     }
 }
 

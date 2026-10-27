@@ -6,7 +6,7 @@ export class MagicSpell {
         this.name = name;
         this.type = "Magic";
         this.element = element;
-        this.basePower = basePower;
+        this.power = power;
         this.scope = scope;
         this.magicCost = magicCost;
         this.range = range;
@@ -28,7 +28,7 @@ export const Spells = {
     },
     ROSE: {
         SINGLE: new MagicSpell("Fire Bolt", Elements.FIRE.name, 40, "SINGLE", 15, 4),
-        AOE: new MagicSpell("Fire Dance", Elements.Fire.name, 40, "AOE", 35, 5)
+        AOE: new MagicSpell("Fire Dance", Elements.FIRE.name, 40, "AOE", 35, 5)
     },
     STRIKE: {
         SINGLE: new MagicSpell("Wind Slice", Elements.WIND.name, 40, "SINGLE", 10, 4),
