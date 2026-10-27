@@ -1,8 +1,8 @@
 
 import { MiniGameSystem } from "./minigame.js";
-import { CombatAction } from "./actions.js";
+import { CombatAction } from "./CombatAction.js";
 import { evaluateAimState, calculateHitProb, executeAceGreatSword } from "./tactics.js";
-import { CombatMath } from "./combatMath.js";
+import { CombatMath } from "./CombatMath.js";
 
 export function executeWeaponAttack(attacker, primaryTarget, weapon, obstacles, grid, enemiesInRoom, aimDirection) {
     let aimState = "white";

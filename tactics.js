@@ -1,3 +1,5 @@
+import { CombatMath } from "./CombatMath.js";
+
 export class TacticalEnvironment {
     static getTilesAlongLine(source, target) {
         let tiles = [];
@@ -57,16 +59,16 @@ export class TacticalEnvironment {
     }
 }
 // Found a better solution optimizing Bresenham's Line Algo and a Range-and-Cover Inspection
-function evaluateAimState(playerPos, targetPos, weapon, obstacles) {
+export function evaluateAimState(playerPos, targetPos, weapon, obstacles) {
     let distance = Math.hypot(targetPos.x - playerPos.x, targetPos.y - playerPos.y); //checks the range
     if (distance > weapon.maxRange) {
         return "red"; // Out of range
     }
-
+ 
     let pathTiles = TacticalEnvironment.getTilesAlongLine(playerPos, targetPos); // Bresenham's line algo
     let hasSolidBlock = false;
     let hasCover = false;
-
+ 
     for (let tile of pathTiles) {
         let obstacle = obstacles.find(o => o.x === tile.x && o.y === tile.y); // check if obstacle blocks target
         if (obstacle) {

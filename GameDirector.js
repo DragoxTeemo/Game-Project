@@ -117,8 +117,8 @@ export class GameDirector {
     dispatchActorTurn(actor) {
         let manaPool = actor.faction === "hero" ? this.heroMana : this.villainMana;
         if (actor.faction === "hero") {
-            let queueAction = this.getQueuePlayerAction(actor);
-            if (!queueAction) {
+            let queuedAction = this.getQueuePlayerAction(actor);
+            if (!queuedAction) {
                 console.log(`${actor.codename} is waiting on a player action (input handler not yet wired up).`);
                 return;
             }

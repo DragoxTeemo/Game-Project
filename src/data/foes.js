@@ -1,4 +1,4 @@
-import {Elements} from "./elements.js";
+import {Elements} from "./elements";
 
 //Placeholder names
 export const FoeArchetypes = {
@@ -54,6 +54,7 @@ export class Virus {
         this.level = this.calculateScaledLevel(groupLevel, tier);
 
         this.isImmuneToMud = (this.archetype === FoeArchetypes.LIZALFOS);
+        this.villainMana = villainMana; // Optional reference to mana pool system
 
         this.applyArchetypeScaling();
         this.applyElementalProfile();
@@ -87,8 +88,9 @@ export class Virus {
 
         this.isDefeated = false;
     }
+    
     calculateStaticXpReward() {
-        const entry = MasterFoeRegistry[this.archetype] || MasterFoeRegistry[FoeArchetypes.BOKOBOLIN]; //Fall back
+        const entry = MasterFoeRegistry[this.archetype] || MasterFoeRegistry[FoeArchetypes.BOKOBOLIN]; 
         const tierData = entry.tiers[this.tier] || entry.tiers[FoeTiers.RED];
 
         const archetypeMultipliers = {
@@ -123,32 +125,29 @@ export class Virus {
         }
         return {type: "NORMAL", multiplier: 1.0, message: ""};
     }
-
-        getCombatSummary() {
-        return {
-            title: this.title,
-            archetype: this.archetype,
-            difficulty: this.tier,
-            level: this.level,
-            durability: {
-                currentHP: this.hp,
-                maxHP: this.maxHP,
-                percentage: Math.floor((this.hp / this.maxHP) * 100)
-            },
-            weaknesses: [...this.weaknesses],
-            resistances: [...this.resistances],
-            immunities: [...this.immunities]
-        };
-    }
-    
     chooseAction (party, allies, availableActions) {
         // Placeholder logic for choosing an action
         let bestAction = null;
         let bestScore = -Infinity;
         let bestTarget = null;
 
-        for (let action of availableActions) {
-            for (let target of party) {
+        // Filter out downed or defeated heroes so foes don't target dead targets or execute them
+        const validTargets = party.filter(p => p.hp > 0 && !p.isDefeated);
+        if (validTargets.length === 0) return { action: null, target: null };
+
+        // Filter actions by mana affordability if a mana system is provided
+        const affordableActions = availableActions.filter(action => {
+            const cost = action.magicCost ?? action.baseCost ?? 0;
+            if (this.villainMana && typeof this.villainMana.canAfford === "function") {
+                return this.villainMana.canAfford(cost);
+            }
+            return true;
+        });
+
+        const actionsToConsider = affordableActions.length > 0 ? affordableActions : availableActions;
+
+        for (let action of actionsToConsider) {
+            for (let target of validTargets) {
                 let score = this.evaluateActionScore(action, target, party, allies);
                 if (score > bestScore) {
                     bestScore = score;
@@ -158,42 +157,41 @@ export class Virus {
             }
         }
 
-        return {action: bestAction, target: bestTarget};
+        return { action: bestAction, target: bestTarget };
     }
 
-    evaluateActionScore(action, target, party, allies) {
-        // Placeholder scoring logic
-        let score = action.action.basePower ?? action.action.power ?? 0;
+    evaluateActionStore(action, target, party, allies) {
+        // Alias support for wrapped vs direct action structures
+        const actionObj = action.action || action;
+        let score = actionObj.power ?? actionObj.basePower ?? 0;
 
-        //Target Health Exploitation (Execute low-HP heroes)
+        // Target Health Exploitation (Execute low-HP heroes)
         let targetMaxHp = target.maxHp ?? target.maxHP ?? 1;
         const targetHpPercentage = target.hp / targetMaxHp;
         if (targetHpPercentage < 0.3) {
             score += 30; // Prioritize low HP targets
         }
-        //Elemental Exploitation
-        if (action.elements) {
-            if (target.weaknesses?.includes(action.elements)) {
+        
+        // Elemental Exploitation
+        const element = actionObj.element || action.elements;
+        if (element) {
+            if (target.weaknesses?.includes(element)) {
                 score += 20; // Bonus for exploiting weakness
             }
-            if (target.resistances?.includes(action.elements)) {
+            if (target.resistances?.includes(element)) {
                 score -= 10; // Penalty for resistance
             }
-            if (target.immunities?.includes(action.elements)) {
+            if (target.immunities?.includes(element)) {
                 score -= 50; // Heavy penalty for immunity
             }
         }
         
         //Archetype persona adjustments
         if (this.archetype === FoeArchetypes.LIZALFOS && target.isBackline && action.action.type === "RANGED") {
-            score += 20; // VIRIONS favor ranged attacks
+            score += 20; // LIZALFOS favor ranged attacks
         }
-        if (this.archetype === FoeArchetypes.MOBLIN && target.isPrimaryDamageDealer && action.action.type === "MELEE") {
-            score += 20; // Cytopaths favor magic attacks
-        }
-
-        if (this.archetype === FoeArchetypes.AIRBORNE && target.isPrimaryDamageDealer && action.action.type === "MAGIC") {
-            score += 20; // Airbornes favor magic attacks
+        if (this.archetype === FoeArchetypes.MOBLIN && target.isPrimaryDamageDealer && action.action.type === "MAGIC") {
+            score += 20; // MOBLINs favor magic attacks
         }
 
         //Low Health Self-Preservation
@@ -202,9 +200,12 @@ export class Virus {
             score += 50; // Prioritize healing when low HP
         }
 
-    //Add slight random variance so that AI isn't 100% deterministic
+        //Add slight random variance so that AI isn't 100% deterministic
         score += Math.floor(Math.random() * 10) - 5; // Random variance between -5 and +4
         return score;
-    
+    }
+
+    evaluateActionScore(action, target, party, allies) {
+        return this.evaluateActionStore(action, target, party, allies);
     }
 }

@@ -29,7 +29,7 @@ export class SharedManaPool {
     spend(amount) {
         if (!this.canAfford(amount)) return false;
         this.current -= amount;
-        return true;
+        return this.current >= amount;
     }
 
     reset() {

@@ -6,7 +6,7 @@ export class MagicSpell {
         this.name = name;
         this.type = "Magic";
         this.element = element;
-        this.basePower = basePower;
+        this.power = power;
         this.scope = scope;
         this.magicCost = magicCost;
         this.range = range;
