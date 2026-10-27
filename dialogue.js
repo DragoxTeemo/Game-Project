@@ -99,6 +99,239 @@
  * 
  * ---------------------------------------------------------------------------
  */
+// Colors follow each Rider's element (Ace = Ice, BlazE = Lightning, etc.)
+// Sprites for character art
+export const Characters = {
+    Cody:    { codename: "Echo",   color: "#000000", sprites: {} },
+    Ethan:   { codename: "Ace",    color: "#4ea8de", sprites: {} },
+    Rebecca: { codename: "BlazE",  color: "#ffb703", sprites: {} },
+    Kira:    { codename: "Rose",   color: "#ff4500", sprites: {} },
+    JJ:      { codename: "Strike", color: "#38b000", sprites: {} },
+    Alice:   { codename: "Star",   color: "#7209b7", sprites: {} },
+};
+
+// Swap color for image once backgrounds exist
+export const Backgrounds = {
+    school_gate:   { color: "#1f2a44", label: "Swiftview High, front gate (afternoon)" },
+    phone_call:    { color: "#1a1530", label: "Phone call" },
+    meetup:        { color: "#13213a", label: "The usual meetup spot" },
+};
+
+// Hub options disappear once visited; this checks whether all five are done
+const visitedEveryone = (f) =>
+    f.visited_ethan && f.visited_rebecca && f.visited_kira && f.visited_jj && f.visited_alice;
+
+export const Scenes = {
+    /* ===================================================================== */
+    /*  OPENING                                                              */
+    /* ===================================================================== */
+    intro_opening: [
+        { bg: "school_gate" },
+        { text: "The last bell of the day rings out across Swiftview High." },
+        { show: "Cody", pos: "center" },
+        { speaker: "Cody", text: "High school is over... What should I do?" },
+        { speaker: "Cody", text: "The Digital World isn't going anywhere. Probably." },
+        { speaker: "Cody", text: "Maybe I should check in on everyone first." },
+        { hide: "Cody" },
+        { goto: "intro_hub" },
+    ],
+
+    intro_hub: [
+        { bg: "school_gate" },
+        { if: visitedEveryone, text: "That's everyone. Time to head out." },
+        {
+            prompt: "Where to?",
+            choice: [
+                { text: "Visit Ethan",   if: "!visited_ethan",   goto: "visit_ethan" },
+                { text: "Visit Rebecca", if: "!visited_rebecca", goto: "visit_rebecca" },
+                { text: "Visit Kira",    if: "!visited_kira",    goto: "visit_kira" },
+                { text: "Visit JJ",      if: "!visited_jj",      goto: "visit_jj" },
+                { text: "Call Alice",    if: "!visited_alice",   goto: "visit_alice" },
+                { text: "Go to the Digital World", goto: "intro_departure" },
+            ],
+        },
+    ],
+
+    /* ===================================================================== */
+    /*  VISITS                                                               */
+    /* ===================================================================== */
+    visit_ethan: [
+        { bg: "school_gate" },
+        { show: "Ethan"},
+        { speaker: "Ethan", text: "Cody! Perfect timing. Which one of these is less blurry?" },
+        { text: "Every photo is a smear of claws and static. One of them might be a Virus. One of them might be a thumb." },
+        {
+            choice: [
+                {
+                    text: "The second one, I guess?",
+                    then: [
+                        { speaker: "Ethan", text: "That's what I said! The editor said it looks like a smudge with anger issues." },
+                    ],
+                },
+                {
+                    text: "They're all garbage.",
+                    then: [
+                        { speaker: "Ethan", text: "Wow. Brutal." },
+                        { speaker: "Ethan", text: "...Accurate, but brutal. You try framing a shot while something's trying to eat you." },
+                    ],
+                },
+            ],
+        },
+        { speaker: "Ethan", text: "The club wants real footage of the Digital World. Like I can just ask the monsters to hold still." },
+        { speaker: "Ethan", text: "Whatever. If we're heading in later, I'm bringing the good camera. And a better strap. RIP the last one." },
+        { set: { visited_ethan: true } },
+        { hide: "Ethan" },
+        { goto: "intro_hub" },
+    ],
+
+    visit_rebecca: [
+        { bg: "school_gate" },
+        { text: "Rebecca is sitting on the front steps, staring at her phone." },
+        { show: "Rebecca"},
+        { speaker: "Cody", text: "Hey. You good?" },
+        { speaker: "Rebecca", text: "Hm? Oh, hey Cody. Yeah. Just texting my mom." },
+        { speaker: "Rebecca", text: "The doctors say my brother's stable." },
+        { speaker: "Rebecca", text: "Which is good! It's good. I just hope he wakes up soon." },
+        {
+            choice: [
+                {
+                    text: "He's tough. He'll pull through.",
+                    then: [
+                        { speaker: "Rebecca", text: "Yeah. He is. Annoyingly tough, honestly." },
+                    ],
+                },
+                {
+                    text: "He'll be fine. Next thing you know he'll be back to his antics and pissing everyone off.",
+                    then: [
+                        { speaker: "Rebecca", text: "Okay, that's fair. I don't miss his pestering." },
+                    ],
+                },
+            ],
+        },
+        { speaker: "Rebecca", text: "Anyway. If we're going in later, count me in. I could use something to aim at." },
+        { set: { visited_rebecca: true } },
+        { hide: "Rebecca" },
+        { goto: "intro_hub" },
+    ],
+
+    visit_kira: [
+        { bg: "school_gate" },
+        { text: "Kira is crossing the parking lot with a violin case, a stack of textbooks, and an iced coffee. Somehow none of it is falling." },
+        { show: "Kira" },
+        { speaker: "Kira", text: "Cody. What's up? I have four minutes." },
+        { speaker: "Cody", text: "Four minutes?" },
+        { speaker: "Kira", text: "Quiz at SU this afternoon, then violin practice. I'm listening to the lecture recording on the drive." },
+        {
+            choice: [
+                {
+                    text: "How are you even alive?",
+                    then: [
+                        { speaker: "Kira", expr: "smirk", text: "Iced coffee and spite. Mostly coffee." },
+                    ],
+                },
+                {
+                    text: "Sounds like you're having a great time.",
+                    then: [
+                        { speaker: "Kira", text: "Oh, extremely. I'm basically on vacation." },
+                        { speaker: "Kira", text: "Don't make me laugh, I'll spill this." },
+                    ],
+                },
+            ],
+        },
+        { speaker: "Kira", text: "If you're going into the Digital World tonight, text me. I'll come after practice." },
+        { speaker: "Kira", text: "Somebody has to stop you guys from charging in blind." },
+        { set: { visited_kira: true } },
+        { hide: "Kira" },
+        { goto: "intro_hub" },
+    ],
+
+    visit_jj: [
+        // { bg: "school_gate" },
+        { show: "JJ" },
+        { speaker: "JJ", text: "CODY! Help! My sister took the TV and my brothers are being SO annoying." },
+        { speaker: "Cody", text: "Which sister?" },
+        { speaker: "JJ", text: "The little one! She's tiny and she's a dictator." },
+        {
+            choice: [
+                {
+                    text: "Sounds rough, buddy.",
+                    then: [
+                        { speaker: "JJ", expr: "pout", text: "It's SO rough. Nobody in this house respects me." },
+                    ],
+                },
+                {
+                    text: "Maybe you're the annoying one.",
+                    then: [
+                        { speaker: "JJ", text: "Wow. WOW. I thought you were on my side!" },
+                        { speaker: "JJ", text: "...Okay, sometimes. But not today!" },
+                    ],
+                },
+            ],
+        },
+        { speaker: "JJ", text: "Are we going to the Digital World? Please say yes. Please please please." },
+        { speaker: "Cody", text: "MAYBE I'll bring you. Just don't cause me any trouble." },
+        { set: { visited_jj: true } },
+        { hide: "JJ" },
+        { goto: "intro_hub" },
+    ],
+
+    visit_alice: [
+        { bg: "phone_call" },
+        { text: "Cody taps Alice's name. The line crackles with static for a second." },
+        { show: "Alice", pos: "center" },
+        { speaker: "Alice", text: "Cody? Hi! Sorry, I was in the middle of reading something." },
+        { speaker: "Cody", text: "What are you reading?" },
+        { speaker: "Alice", text: "My dad's old notes. The ones I can open, anyway. Half are locked and the other half are just math." },
+        { speaker: "Alice", text: "I keep thinking I'll find something that explains me." },
+        {
+            choice: [
+                {
+                    text: "Find anything good?",
+                    then: [
+                        { speaker: "Alice", text: "No nothing helpful at all." },
+                    ],
+                },
+                {
+                    text: "Sounds boring.",
+                    then: [
+                        { speaker: "Alice", text: "It is SO boring! Thank you. Everyone else keeps saying it sounds interesting." },
+                    ],
+                },
+            ],
+        },
+        { speaker: "Alice", text: "Are you all coming in today?" },
+        { speaker: "Cody", text: "Yeah. Soon." },
+        { set: { visited_alice: true } },
+        { hide: "Alice" },
+        { goto: "intro_hub" },
+    ],
+
+    /* ===================================================================== */
+    /*  DEPARTURE                                                            */
+    /* ===================================================================== */
+    intro_departure: [
+        { bg: "meetup" },
+        { text: "Everyone meets up at the usual spot." },
+        { show: "Ethan", pos: "center" },
+        { speaker: "Ethan", text: "Ready for the Digital World?" },
+        {
+            choice: [
+                {
+                    text: "Hell yeah!",
+                    then: [{ speaker: "Ethan", text: "Let's go!" }],
+                },
+                {
+                    text: "What do you think?",
+                    then: [{ speaker: "Ethan", text: "Man, you're pumped!" }],
+                },
+            ],
+        },
+        { set: { intro_complete: true } },
+        { end: "digital_world" },
+    ],
+
+};
+
 export const RescueDialogue = {
     Echo: {
         defeated: [
@@ -207,12 +440,7 @@ export const DialogueSystem = {
             } 
         }
 
-        let linePool = (characterPool[category] && characterPool[category].length > 0) 
-            ? characterPool[category] 
-            : (characterPool.benchedSaving && characterPool.benchedSaving.length > 0) 
-                ? characterPool.benchedSaving 
-                : ["Let's Move!"];
-
+        let linePool = characterPool[category] || characterPool.benchedSaving;
         let randomIndex = Math.floor(Math.random() * linePool.length);
         return linePool[randomIndex];
     },
