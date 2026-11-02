@@ -15,7 +15,7 @@
  *JJ/Strike: a = .65, b = 11, c = 50
  *Alice/Star: a = 1.5, b = 16, c = 10
  */
-import { Elements } from "./elements";
+import { Elements } from "./elements.js";
 
 export class MaskedRider {
     constructor(id, registryData) {
@@ -34,7 +34,7 @@ export class MaskedRider {
         this.b = this.coefficients.b;
         this.c = this.coefficients.c;
         
-        this.curvePowerFactor = this.calculateCurvePower();// Automatically derive growth modifier from the cubic coefficients
+        this.curvePowerFactor = this.calculateCurvePower(); // Automatically derive growth modifier from the cubic coefficients
         this.baseElement = registryData.elements || Elements.PHYSICAL.name;
         this.elements = this.baseElement;
         this.allowedElements = registryData.allowedElements || null; // Store allowed list
@@ -71,11 +71,11 @@ export class MaskedRider {
 
         // Hidden background accumulator to tract exact decimal growth
         this.statAccumulators = {
-            strength: baseStatBaseline * 1.0,
-            defense: baseStatBaseline * 1.0,
-            magic: baseStatBaseline * 1.0,
-            ward: baseStatBaseline * 1.0,
-            speed: baseStatBaseline * 1.0
+            strength: baseStatBaseline / (this.statAffinities.strength || 1.0),
+            defense: baseStatBaseline / (this.statAffinities.defense || 1.0),
+            magic: baseStatBaseline / (this.statAffinities.magic || 1.0),
+            ward: baseStatBaseline / (this.statAffinities.ward || 1.0),
+            speed: baseStatBaseline / (this.statAffinities.speed || 1.0)
         };
 
         // Use unified HP formula starting at level 1
@@ -110,14 +110,33 @@ export class MaskedRider {
     transform(formKey) {
         if (!this.hasForms || !this.forms[formKey]) return false;
 
-        this.activeFormKey = formKey;
         let targetForm = this.forms[formKey];
+        let newAffinities = targetForm.statWeight;
 
-        this.statAffinities = targetForm.statWeight;
+        this.activeFormKey = formKey;
+        this.statAffinities = newAffinities;
         if (targetForm.elements) {
             this.elements = targetForm.elements;
         }
-        console.log(`${this.codename} shifted configuration into ${targetForm.formName || formKey}`);
+
+        // Star and Echo forms change stats immediately. Other form swaps keep current stats 
+        // and only update statAffinities for future growth.
+
+        const changesStatsImmediately = (this.codename === "Star" || this.codename === "Echo");
+        if (changesStatsImmediately) {
+            this.updateAllStats();
+            console.log(`${this.codename} shifted configuration into ${targetForm.formName || formKey} (Stats updated immediately)`);
+        } else {
+            // Adjust levelPool so that levelPool * newAffinity = currentStat (keeping current stats unchanged)
+            this.statAccumulators.strength = this.strength / (newAffinities.strength || 1.0);
+            this.statAccumulators.defense  = this.defense  / (newAffinities.defense || 1.0);
+            this.statAccumulators.magic    = this.magic    / (newAffinities.magic || 1.0);
+            this.statAccumulators.ward     = this.ward     / (newAffinities.ward || 1.0);
+            this.statAccumulators.speed    = this.speed    / (newAffinities.speed || 1.0);
+
+            console.log(`${this.codename} shifted configuration into ${targetForm.formName || formKey} (Stats unchanged, affinities updated for future growth)`);
+        }
+
         return true;
     }
 
@@ -140,7 +159,6 @@ export class MaskedRider {
      */
     calculateMaxHpForLevel(targetLevel) {
         let rawCurve = (this.a * Math.pow(targetLevel, 3) + this.b * Math.pow(targetLevel, 2) + this.c * targetLevel);
-        // Using a smooth progressive scaling factor for max HP across all levels
         let calculatedHp = Math.floor(rawCurve / 2200) + 50; 
         return Math.min(999, Math.max(20, calculatedHp));
     }
@@ -177,14 +195,24 @@ export class MaskedRider {
     }
 
     updateSingleStat(statName, baseScaling) {
-        let affinity = this.statAffinities[statName] || 1.0;
-        
-        let levelProgressRatio = this.level / 99; // RPG style growth to prevent characters from hitting 99 in certain stats through leveling alone
-        let diminishingFactor = 1.0 - (levelProgressRatio * 0.6); // Growth slows by up to 60%
+        let levelProgressRatio = this.level / 99; 
+        let diminishingFactor = 1.0 - (levelProgressRatio * 0.6); 
 
-        let growthIncrement = baseScaling * this.curvePowerFactor * affinity * diminishingFactor; 
+        // Accumulate growth in the level pool WITHOUT affinity baked in
+        let growthIncrement = baseScaling * this.curvePowerFactor * diminishingFactor; 
         this.statAccumulators[statName] += growthIncrement; 
-        return Math.min(99, Math.floor(this.statAccumulators[statName])); 
+
+        // Derive current stat as levelPool × affinity
+        let affinity = this.statAffinities[statName] || 1.0;
+        return Math.min(99, Math.floor(this.statAccumulators[statName] * affinity)); 
+    }
+
+    updateAllStats() {
+        this.strength = Math.min(99, Math.floor(this.statAccumulators.strength * (this.statAffinities.strength || 1.0)));
+        this.defense  = Math.min(99, Math.floor(this.statAccumulators.defense * (this.statAffinities.defense || 1.0)));
+        this.magic    = Math.min(99, Math.floor(this.statAccumulators.magic * (this.statAffinities.magic || 1.0)));
+        this.ward     = Math.min(99, Math.floor(this.statAccumulators.ward * (this.statAffinities.ward || 1.0)));
+        this.speed    = Math.min(99, Math.floor(this.statAccumulators.speed * (this.statAffinities.speed || 1.0)));
     }
 }
 

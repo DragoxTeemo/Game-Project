@@ -57,7 +57,6 @@
  * ==========================================
  */
 
-import { generateValidatedMacroMap } from "./WorldGeneration.js";
 import { createNoise2D } from 'https://cdn.jsdelivr.net/npm/simplex-noise@4.0.1/+esm';
 const noise2D = createNoise2D();
 
