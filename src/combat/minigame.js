@@ -18,7 +18,7 @@ export class MiniGameSystem {
 
     // Fallout Style RNG with scrap/cover affecting accuracy
     static runRNGHitCheck(baseAccuracy = 85, isBehindCover = false) {
-        let finalChance = isBehindCover ? baseAccuracy - 25: baseAccuracy; 
+        let finalChance = isBehindCover ? baseAccuracy - 10 : baseAccuracy; 
         let roll = Math.random() * 100;
 
         if (roll <= finalChance) {
@@ -34,7 +34,7 @@ export class MiniGameSystem {
         } else if (barStopPosition >= partialZoneStart && barStopPosition <= partialZoneEnd) {
             return { multiplier: 1.0, text: "Hit"};
         } else {
-            return { multiplier: 0.5, text: "Graze!"};
+            return { multiplier: 0.6, text: "Graze!"};
         }
     }
 

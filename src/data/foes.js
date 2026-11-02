@@ -72,7 +72,7 @@ export class Virus {
     }
 
     applyArchetypeScaling() {
-        const entry = MasterFoeRegistry[this.archetype] || MasterFoeRegistry[FoeArchetypes.BOKOBOLIN];
+        const entry = MasterFoeRegistry[this.archetype] || MasterFoeRegistry[FoeArchetypes.VIRION];
         const tierData = entry.tiers[this.tier] || entry.tiers[FoeTiers.RED];
         let mod = entry.baseStats;
         let tierMult = tierData.tierMult;
@@ -90,7 +90,7 @@ export class Virus {
     }
     
     calculateStaticXpReward() {
-        const entry = MasterFoeRegistry[this.archetype] || MasterFoeRegistry[FoeArchetypes.BOKOBOLIN]; 
+        const entry = MasterFoeRegistry[this.archetype] || MasterFoeRegistry[FoeArchetypes.VIRION]; 
         const tierData = entry.tiers[this.tier] || entry.tiers[FoeTiers.RED];
 
         const archetypeMultipliers = {
@@ -105,7 +105,7 @@ export class Virus {
     }
 
     applyElementalProfile() {
-        const entry = MasterFoeRegistry[this.archetype] || MasterFoeRegistry[FoeArchetypes.BOKOBOLIN];
+        const entry = MasterFoeRegistry[this.archetype] || MasterFoeRegistry[FoeArchetypes.VIRION];
         const tierData = entry.tiers[this.tier] || entry.tiers[FoeTiers.RED];
 
         this.weaknesses = tierData.profile.weak;

@@ -1,6 +1,6 @@
 
 import { MiniGameSystem } from "./minigame.js";
-import { CombatAction } from "./actions.js";
+import { CombatAction } from "./CombatAction.js";
 import { evaluateAimState, calculateHitProb, executeAceGreatSword } from "./tactics.js";
 import { CombatMath } from "./CombatMath.js";
 
@@ -23,7 +23,7 @@ export function executeWeaponAttack(attacker, primaryTarget, weapon, obstacles, 
     switch (weapon.minigameType) {
         case "RNG":
             let baseAccuracy = 85;
-            if (isCovered) baseAccuracy -= 25; // BlazE cover penalty
+            if (isCovered) baseAccuracy -= 10; // BlazE cover penalty
             minigameResult = MiniGameSystem.runRNGHitCheck(baseAccuracy, isCovered);
             break;
             
