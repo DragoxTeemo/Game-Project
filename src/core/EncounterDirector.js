@@ -1,4 +1,4 @@
-import { FoeArchetypes } from "../data/foes.js";
+import { FoeArchetypes } from "../data/foeConfig.js";
 import { Virus, MasterFoeRegistry } from "./foes.js";
 
 export function calculateGroupAverageLevel(party) {

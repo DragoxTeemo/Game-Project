@@ -1,10 +1,10 @@
-import { MaskedRiderRegistry } from "./riderConfig";
+import { MaskedRiderRegistry } from "./riderConfig.js";
 import { MaskedRider } from "./MaskedRider";
-import { EncounterDirector, calculateGroupAverageLevel, distributeAdjustedEXP } from "./EncounterDirector";
-import { SharedManaPool } from "./manaSystem";
-import { executeWeaponAttack } from "./weaponExecutionEngine";
-import { executeSpellCast } from "./spellExecutionEngine";
-import { getFoeAvailableActions } from "./foeSpells";
+import { EncounterDirector, calculateGroupAverageLevel, distributeAdjustedEXP } from "./EncounterDirector.js";
+import { SharedManaPool } from "./ManaSystem.js";
+import { executeWeaponAttack } from "./weaponExecutionEngine.js";
+import { executeSpellCast } from "./spellExecutionEngine.js";
+import { getFoeAvailableActions } from "./foeSpells.js";
 
 
 
@@ -132,8 +132,9 @@ export class GameDirector {
                 return;
             }
 
-            let spell = choice.action.action;
-            this.resolveAction(actor, spell, choice.target, manaPool, this.party);
+            let chosenActionItem = choice.action.action || choice.action;
+            
+            this.resolveAction(actor, chosenActionItem, choice.target, manaPool, this.party);
         }
     }
     
