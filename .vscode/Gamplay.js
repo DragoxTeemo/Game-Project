@@ -25,7 +25,7 @@ const DEFAULT_ACTION_KEYS = {
 // The controller can be attached to a specific event target (like the window) to handle key events, 
 // and it maintains a set of interactable objects that the player can interact with when in range.
 export class GameplayController {
-	constructor({ player = null, director = null, startPosition = { x: 0, y: 0 }, bounds = null, interactionRange = 1, onMove = () => {}, onInteract = () => {}, onCommunicate = null, onOpenSettings = null, onUsePower = null, onUseWeapon = null, actionKeys = {} } = {}) {
+	constructor({ player = null, director = null, startPosition = { x: 0, y: 0 }, bounds = null, interactionRange = 1, movementSpeed = 300, onMove = () => {}, onInteract = () => {}, onCommunicate = null, onOpenSettings = null, onUsePower = null, onUseWeapon = null, actionKeys = {} } = {}) {
 		this.director = director;
 		player = player || director?.party?.[0];
 		if (!player) {
@@ -36,6 +36,7 @@ export class GameplayController {
 		this.position = { ...startPosition };
 		this.bounds = bounds;
 		this.interactionRange = interactionRange;
+		this.movementSpeed = movementSpeed;
 		this.onMove = onMove;
 		this.onInteract = onInteract;
 		this.actionHandlers = { onCommunicate, onOpenSettings, onUsePower, onUseWeapon };
@@ -44,9 +45,14 @@ export class GameplayController {
 			new Set((Array.isArray(keys) ? keys : [keys]).map(key => String(key).toLowerCase()))
 		]));
 		this.interactables = new Set();
+		this.pressedMovementKeys = new Set();
 		this.enabled = true;
 		this.eventTarget = null;
+		this.animationFrameId = null;
+		this.lastFrameTimestamp = null;
 		this.keyHandler = event => this.handleKeyDown(event);
+		this.keyUpHandler = event => this.handleKeyUp(event);
+		this.blurHandler = () => this.pressedMovementKeys.clear();
 	}
 
 	attach(target = globalThis.window) {
@@ -57,6 +63,9 @@ export class GameplayController {
 		this.detach();
 		this.eventTarget = target;
 		target.addEventListener("keydown", this.keyHandler);
+		target.addEventListener("keyup", this.keyUpHandler);
+		target.addEventListener("blur", this.blurHandler);
+		this.startMovementLoop(target);
 		return true;
 	}
 
@@ -65,9 +74,38 @@ export class GameplayController {
 			return false;
 		}
 
-		this.eventTarget.removeEventListener("keydown", this.keyHandler);
+		const target = this.eventTarget;
+		target.removeEventListener("keydown", this.keyHandler);
+		target.removeEventListener("keyup", this.keyUpHandler);
+		target.removeEventListener("blur", this.blurHandler);
+		this.pressedMovementKeys.clear();
+		if (this.animationFrameId !== null) {
+			target.cancelAnimationFrame?.(this.animationFrameId);
+		}
+		this.animationFrameId = null;
+		this.lastFrameTimestamp = null;
 		this.eventTarget = null;
 		return true;
+	}
+
+	startMovementLoop(target) {
+		if (typeof target.requestAnimationFrame !== "function") {
+			return;
+		}
+
+		const tick = timestamp => {
+			if (this.eventTarget !== target) {
+				return;
+			}
+
+			if (this.lastFrameTimestamp !== null) {
+				this.updateMovement((timestamp - this.lastFrameTimestamp) / 1000);
+			}
+			this.lastFrameTimestamp = timestamp;
+			this.animationFrameId = target.requestAnimationFrame(tick);
+		};
+
+		this.animationFrameId = target.requestAnimationFrame(tick);
 	}
 // handleKeyDown processes keyboard events to control player movement and interactions.
 	handleKeyDown(event) {
@@ -79,7 +117,8 @@ export class GameplayController {
 		const direction = MOVEMENT_KEYS[key];
 		if (direction) {
 			event.preventDefault?.();
-			return this.move(direction.x, direction.y);
+			this.pressedMovementKeys.add(key);
+			return true;
 		}
 
 		if (this.actionKeys.interact?.has(key)) {
@@ -104,6 +143,49 @@ export class GameplayController {
 		}
 
 		return false;
+	}
+
+	handleKeyUp(event) {
+		if (!event?.key) {
+			return false;
+		}
+
+		return this.pressedMovementKeys.delete(event.key.toLowerCase());
+	}
+
+	updateMovement(deltaSeconds) {
+		if (!this.enabled || !Number.isFinite(deltaSeconds) || deltaSeconds <= 0) {
+			return false;
+		}
+
+		const isPressed = (...keys) => keys.some(key => this.pressedMovementKeys.has(key));
+		let deltaX = Number(isPressed("d", "arrowright")) - Number(isPressed("a", "arrowleft"));
+		let deltaY = Number(isPressed("s", "arrowdown")) - Number(isPressed("w", "arrowup"));
+		if (deltaX === 0 && deltaY === 0) {
+			return false;
+		}
+
+		const directionLength = Math.hypot(deltaX, deltaY);
+		deltaX /= directionLength;
+		deltaY /= directionLength;
+		const distance = this.movementSpeed * Math.min(deltaSeconds, 0.05);
+		const nextPosition = {
+			x: this.position.x + deltaX * distance,
+			y: this.position.y + deltaY * distance
+		};
+
+		if (this.bounds && (
+			nextPosition.x < 0 || nextPosition.y < 0 ||
+			nextPosition.x >= this.bounds.width || nextPosition.y >= this.bounds.height
+		)) {
+			return false;
+		}
+
+		this.position = nextPosition;
+		this.player.position = { ...nextPosition };
+		this.player.move?.({ ...nextPosition });
+		this.onMove({ ...nextPosition }, this.player);
+		return true;
 	}
 // move updates the player's position based on the provided delta values, ensuring movement is within bounds and notifying listeners of the change.
 	move(deltaX, deltaY) {
@@ -213,7 +295,7 @@ export class GameplayController {
 		return this.runAction("onUsePower", "usePower", event);
 	}
 
-useWeapon(event) {
+	useWeapon(event) {
 		if (typeof this.actionHandlers.onUseWeapon !== "function" && typeof this.director?.queuePlayerAction === "function") {
 			return this.director.queuePlayerAction(this.player, this.player.equippedWeapon);
 		}
