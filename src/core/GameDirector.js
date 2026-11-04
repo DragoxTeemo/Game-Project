@@ -8,9 +8,7 @@ import { executeFirearmAction, executeBasicAttack } from "./combat/firearmEngine
 import { getFoeBasicActions } from "../data/foeConfig.js";
 import { getReachableTiles, movementBudget } from "../combat/Pathfinding.js";
 import { createOpenGrid, placeUnits } from "../combat/placement.js";
-
-
-
+import { isAlive } from "../data/UnitState.js";
 
 export class GameDirector {
     constructor() {
@@ -24,12 +22,11 @@ export class GameDirector {
         this.turnQueue = [];
         this.combatEnded = false;
         this.currentGroupLevel = 1;
-
-        this.gameState = "MAP_EXPLORATION"; // MAP_EXPLORATION, COMBAT, CUTSCENE
+        this.gameState = "MAP_EXPLORATION"; // MAP_EXPLORATION, COMBAT, CUTSCENE, FINISHER
         this.rescueTimerId = null;
         this.finisherTimerId = null;
     }
-
+ 
     initializeParty(riderKeys) {
         this.party = riderKeys.map(key => {
             const rider = new MaskedRider(key, MaskedRiderRegistry[key]);
@@ -39,7 +36,6 @@ export class GameDirector {
         });
         this.updateGroupLevel();
     }
-
 
     updateGroupLevel() { 
         this.currentGroupLevel = calculateGroupAverageLevel(this.party); 
@@ -69,11 +65,10 @@ export class GameDirector {
         this.turnQueue = this.buildTurnQueue();
     }
 
-
     // Strict Speed-based turn order: every conscious combatant from both sides acts once per round, 
     // highest speed first. On a tied speed, hero always goes before villain.
     buildTurnQueue() {
-        return [...this.party, ...this.activeEnemies].filter(alive).sort((a, b) => {
+        return [...this.party, ...this.activeEnemies].filter(isAlive).sort((a, b) => {
             const d = (b.speed || 0) - (a.speed || 0);
             if (d !== 0) return d;
             return a.faction === b.faction ? 0 : a.faction === "hero" ? -1 : 1;
@@ -83,7 +78,7 @@ export class GameDirector {
     getNextActor() {
         while (this.turnQueue.length) {
             const a = this.turnQueue.shift();
-            if (alive(a)) return a;
+            if (isAlive(a)) return a;
         }
         return null;
     }
@@ -91,29 +86,21 @@ export class GameDirector {
     processNextTurn() {
         if (this.combatEnded) return null;
         let actor = this.getNextActor();
-        if (!actor) { 
-            this.advanceRound(); 
-            actor = this.getNextActor(); 
-        }
-        if (!actor) 
-            return null;
+        if (!actor) { this.advanceRound(); actor = this.getNextActor(); }
+        if (!actor) return null;
  
         this.dispatchActorTurn(actor);
  
-        if (this.checkPartyDefeatState()) { 
-            this.combatEnded = true; 
-            return actor; 
-        }
-        if (this.checkEnemyDefeatState()) 
-            this.combatEnded = true;
+        if (this.checkPartyDefeatState()) { this.combatEnded = true; return actor; }
+        if (this.checkEnemyDefeatState()) this.combatEnded = true;
         return actor;
     }
 
     // Move only to a tile inside the unit's budget; prevents UI or AI from teleporting.
     moveUnit(unit, dest) {
         if (!dest) return false;
-        const units = [...this.party, ...this.activeEnemies].filter(alive);
-        const ok = getReachableTiles(this.grid, unit, movementBudget(unit.speed), units, unit)
+        const units = [...this.party, ...this.activeEnemies].filter(isAlive);
+        const ok = getReachableTiles(this.grid, unit, unitMovePoints(unit), units, unit)
             .some(t => t.x === dest.x && t.y === dest.y);
         if (ok) { unit.x = dest.x; unit.y = dest.y; }
         return ok;
@@ -177,9 +164,9 @@ export class GameDirector {
         this.villainMana.reset();
         this.updateGroupLevel();
     }
-    
+ 
     checkPartyDefeatState() {
-        if (this.party.length > 0 && this.party.every(r => !alive(r))) {
+        if (this.party.length > 0 && this.party.every(r => !isAlive(r))) {
             this.triggerRescueCutscene();
             return true;
         }
@@ -206,13 +193,13 @@ export class GameDirector {
     }
 
     checkEnemyDefeatState() {
-        if (this.activeEnemies.length > 0 && this.activeEnemies.every(e => !alive(e))) {
+        if (this.activeEnemies.length > 0 && this.activeEnemies.every(e => !isAlive(e))) {
             this.triggerRiderFinisher();
             return true;
         }
         return false;
     }
-
+ 
     triggerRiderFinisher() {
         this.gameState = "FINISHER";
         this.finisherTimerId = setTimeout(() => {

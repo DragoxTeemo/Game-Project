@@ -20,14 +20,15 @@ export class Virus {
         this.applyElementalProfile();
         this.xpReward = this.calculateStaticXpReward();
     }
+
     get movePoints() { 
         return movementBudget(this.speed); 
     }
 
     calculateScaledLevel(groupLevel, tier) {
-        let tierBonus = { 
-            [FoeTiers.RED]: 0, 
-            [FoeTiers.BLUE]: Math.floor(groupLevel * 0.2), 
+        const tierBonus = {
+            [FoeTiers.RED]: 0,
+            [FoeTiers.BLUE]: Math.floor(groupLevel * 0.2),
             [FoeTiers.BLACK]: Math.floor(groupLevel * 0.3),
             [FoeTiers.SILVER]: Math.floor(groupLevel * 0.5)
         }[tier] || 0;
@@ -78,6 +79,7 @@ export class Virus {
         if (this.weaknesses.includes(el))  return { type: "WEAK",   multiplier: 1.5, message: "Weak" };
         return { type: "NORMAL", multiplier: 1.0, message: "" };
     }
-    
+ 
+    // ctx: { grid, party, allies, availableActions, manaPool }
     takeTurn(ctx) { return FoeAIController.takeTurn(this, ctx); }
 }

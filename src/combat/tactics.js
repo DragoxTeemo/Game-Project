@@ -1,4 +1,5 @@
 import { CombatMath } from "./CombatMath.js";
+import { isAlive } from "../data/UnitState.js";
 
 export class TacticalEnvironment {
     static getTilesAlongLine(source, target) {

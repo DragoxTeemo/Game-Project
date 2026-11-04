@@ -2,6 +2,7 @@ import { MiniGameSystem } from "./minigames.js";
 import { CombatMath } from "./CombatMath.js";
 import { evaluateAimState, chebyshev } from "./tactics.js";
 import { reloadFirearm } from "../data/weapons.js";
+import { isAlive } from "../data/UnitState.js";
 
 const alive = u => u && u.hp > 0 && !u.isDefeated;
 
@@ -37,12 +38,12 @@ export function executeFirearmAction(attacker, weapon, { mode = "fire", target =
         let primary;
         if (weapon.scope === "ALL_RANDOM") {
             // Pool rebuilt every round: kills and visibility are re-checked each time.
-            const pool = enemies.filter(e => alive(e) && evaluateAimState(attacker, e, weapon.range, grid) !== "red");
+            const pool = enemies.filter(e => isAlive(e) && evaluateAimState(attacker, e, weapon.range, grid) !== "red");
             if (!pool.length) { stopReason = "no_sight"; break; }
             primary = pool[Math.floor(Math.random() * pool.length)];
         } else {
             primary = target;
-            if (!alive(primary)) { stopReason = "no_target"; break; }
+            if (!isAlive(primary)) { stopReason = "no_target"; break; }
             if (evaluateAimState(attacker, primary, weapon.range, grid) === "red") { stopReason = "no_sight"; break; }
         }
  
@@ -51,7 +52,7 @@ export function executeFirearmAction(attacker, weapon, { mode = "fire", target =
  
         if (weapon.scope === "CONE_ADJACENT") {
             for (const e of enemies) {
-                if (e === primary || !alive(e) || chebyshev(e, primary) > 1) continue;
+                if (e === primary || !isAlive(e) || chebyshev(e, primary) > 1) continue;
                 const s = resolveShot(attacker, weapon, e, grid, weapon.secondaryMult ?? 0.6);
                 if (s) shots.push(s);
             }
@@ -72,7 +73,7 @@ export function executeFirearmAction(attacker, weapon, { mode = "fire", target =
  
 // Non-firearm, non-spell attacks (foe basic attacks): range + sight check, hit roll, damage.
 export function executeBasicAttack(attacker, action, target, grid) {
-    if (!alive(target)) return { success: false, reason: "no_target" };
+    if (!isAlive(target)) return { success: false, reason: "no_target" };;
     const aim = evaluateAimState(attacker, target, action.range ?? 1, grid);
     if (aim === "red") return { success: false, reason: "no_sight" };
     const roll = MiniGameSystem.runRNGHitCheck(action.accuracy ?? 90, aim === "yellow");

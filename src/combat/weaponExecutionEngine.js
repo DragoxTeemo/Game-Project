@@ -1,22 +1,21 @@
-
-import { MiniGameSystem } from "./minigame.js";
+import { MiniGameSystem } from "./minigames.js";
 import { CombatAction } from "./CombatAction.js";
-import { evaluateAimState, calculateHitProb, executeAceGreatSword } from "./tactics.js";
 import { CombatMath } from "./CombatMath.js";
+import { evaluateAimState, calculateHitProb, executeAceGreatSword } from "./tactics.js";
+import { isAlive } from "../data/UnitState.js";
 
 export function executeWeaponAttack(attacker, primaryTarget, weapon, obstacles, grid, enemiesInRoom, aimDirection) {
+    const isCone = weapon.scope === "AOE_CONE";
     let aimState = "white";
-    let isCovered = false;
 
-    // Evaluate Aim / Cover State for Ranged Weapons
-    if (weapon.scope === "SINGLE" && weapon.type === "FIREARM") {
-        aimState = evaluateAimState(attacker.position, primaryTarget.position, weapon, obstacles);
-        if (aimState === "red") {
-            return { success: false, reason: "Target out of range or blocked by solid cover." };
-        }
-        isCovered = (aimState === "yellow");
+    if (isCone) {
+        if (!aimDirection) return { success: false, reason: "no_direction" };
+    } else {
+        if (!isAlive(primaryTarget)) return { success: false, reason: "no_target" };
+        aimState = evaluateAimState(attacker, primaryTarget, weapon.range, grid);
+        if (aimState === "red") return {success: false, reason: "Unable to target"};
     }
-
+    
     // Resolve Minigames using your complete MiniGameSystem architecture
     let minigameResult = { multiplier: 1.0, text: "Hit!" };
     
@@ -46,26 +45,15 @@ export function executeWeaponAttack(attacker, primaryTarget, weapon, obstacles, 
     // Execute Grid Interaction (Cone AOE vs Single Target)
     let hitResults = { enemiesDamaged: 0, scrapDestroyed: 0 };
     
-    if (weapon.scope === "AOE_CONE") {
-        hitResults = executeAceGreatSword(attacker, attacker.position, aimDirection, grid, enemiesInRoom, minigameResult.multiplier);
-    } else {
-        let hitChance = calculateHitProb(attacker, primaryTarget);
-        if (Math.random() <= hitChance && minigameResult.multiplier > 0) {
-            let rawDamage = CombatMath.calculatePhysicalDamage(attacker, primaryTarget, weapon.basePower);
-            let finalDamage = Math.floor(rawDamage * minigameResult.multiplier);
-            primaryTarget.hp -= finalDamage;
-            hitResults.enemiesDamaged = 1;
-        }
+    if (isCone) {
+        hitResults = executeAceGreatSword(attacker, weapon, aimDirection, grid, enemiesInRoom, minigameResult.multiplier);
+    } else if (minigameResult.multiplier > 0 && Math.random() <= calculateHitProb(attacker, primaryTarget)) {
+        const raw = CombatMath.calculatePhysicalDamage(attacker, primaryTarget, weapon.basePower);
+        const fx = CombatMath.elementMultiplier(primaryTarget, attacker.elements ?? "Physical");
+        CombatMath.applyDamage(primaryTarget, Math.floor(raw * fx * minigameResult.multiplier));
+        hitResults.enemiesDamaged = 1;
     }
 
-    let action = new CombatAction(
-        weapon.name,
-        "Physical", // All weapon attacks (melee and firearm) resolve as strength vs defense via CombatMath
-        attacker.currentElement || "Physical",
-        weapon.basePower,
-        weapon.scope,
-        weapon.range
-    );
-
-    return { action, minigameResult, aimState, hitResults };
+    const action = new CombatAction(weapon.name, "Physical", attacker.elements ?? "Physical", weapon.basePower, weapon.scope, weapon.range);
+    return { success: true, action, minigameResult, aimState, hitResults };
 }

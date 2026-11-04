@@ -1,8 +1,9 @@
+import { isAlive } from "../data/UnitState";
+
 // grid[x][y]; units carry tile coords on unit.x / unit.y.
 // Impassable: column, wall, natural_wall, scrap, other living units. Mud costs 2 (unless mover.isImmuneToMud).
 const BLOCKED = new Set(["column", "natural_wall", "wall", "scrap"]);
 const DIRS = [[0, -1], [0, 1], [-1, 0], [1, 0]];
-const alive = u => u && u.hp > 0 && !u.isDefeated;
 
 export const tileDistance = (a,b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 
@@ -26,7 +27,7 @@ export const tileCost = (tile, mover = null) =>
  
 function occupiedKeys(units, mover) {
     const keys = new Set();
-    for (const u of units) if (u !== mover && alive(u)) keys.add(`${u.x},${u.y}`);
+    for (const u of units) if (u !== mover && isAlive(u)) keys.add(`${u.x},${u.y}`);
     return keys;
 }
  
