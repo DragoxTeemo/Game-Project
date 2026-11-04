@@ -1,5 +1,5 @@
-import { FoeArchetypes } from "../data/foeConfig.js";
-import { Virus, MasterFoeRegistry } from "./foes.js";
+import { Virus } from "../entities/Virus.js";
+import { FoeArchetypes, MasterFoeRegistry } from "../data/foeConfig.js";
 
 export function calculateGroupAverageLevel(party) {
     if (!party || party.length === 0) return 1;
@@ -41,7 +41,7 @@ export function distributeAdjustedEXP(activeParty = [], benchedParty = [], total
         });
     };
     rewardGroup(activeParty, 1.0); // Active members recieve full efficiency
-    rewardGroup(benchedParty, 0.5); //Benched member recieve half
+    rewardGroup(benchedParty, benchRatio); //Benched member recieve half
 }
 
 export class EncounterDirector {

@@ -1,137 +1,85 @@
-//Calculates the exact tile distance between two grid coordinates
-export function tileDistance(posA, posB) {
-    return Math.abs(posA.x - posB.x) + Math.abs(posA.y - posB.y); //Manhattan distance for grid layouts
+// grid[x][y]; units carry tile coords on unit.x / unit.y.
+// Impassable: column, wall, natural_wall, scrap, other living units. Mud costs 2 (unless mover.isImmuneToMud).
+const BLOCKED = new Set(["column", "natural_wall", "wall", "scrap"]);
+const DIRS = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+const alive = u => u && u.hp > 0 && !u.isDefeated;
+
+export const tileDistance = (a,b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+
+// Speed -> Movement points 
+export function movementBudget(speed = 0) {
+    if (speed >= 65) return 8;
+    if (speed >= 45) return 7;
+    if (speed >= 30) return 6;
+    if (speed >= 20) return 5;
+    if (speed >= 10) return 4;
+    return 3;
 }
 
-export function getReachableTiles(startPos, movementBudget, obstacles, unit) {
-    const reachable = new Map(); // key: x, y; value: cost
-    const queue = [{x: startPos.x, y: startPos.y, cost: 0}];
-
-    reachable.set(`${startPos.x},${startPos.y}`, 0);
-
-    while (queue.length > 0) {
-        queue.sort((a,b) => a.cost - b.cost);
-        let current = queue.shift();
-
-        const neighbor = [
-            { x: current.x, y: current.y - 1 }, // North
-            { x: current.x, y: current.y + 1 }, // South
-            { x: current.x - 1, y: current.y }, // West
-            { x: current.x + 1, y: current.y }  // East
-        ];
-
-        for (let next of neighbor) {
-            // Bound check
-            if (next.x < 0 || next.x >= grid.length || next.y < 0 || next.y >= grid[0].length) {
-                continue;
-            }
-
-            let tile = grid[next.x][next.y];
-            let key = `${next.x},${next.y}`;
-
-            // Column, wall, and scrap are impassable for movement
-            if (tile.type === "column" || tile.type === "natural_wall" || tile.type === "wall" || tile.type === "scrap" || tile.isIndestructible) {
-                continue;
-            }
-            // Check if another unit occupies this tile
-            let isOccupied = units.some(u => u.x === next.x && u.y === next.y && u.hp > 0 && !u.isDefeated);
-            if (isOccupied) {
-                continue;
-            }
-
-            // Check dynamic obstacles if passed
-            let isBlockedByObstacle = obstacles?.some(o => o.x === next.x && o.y === next.y && o.isSolid);
-            if (isBlockedByObstacle) {
-                continue;
-            }
-            // Mud costs 2 movement while standard floor costs 1
-            let moveCost = (tile.type === "mud") ? 2 : 1;
-            let totalCost = current.cost + moveCost;
-
-            if (totalCost <= movementBudget) {
-                if (!reachable.has(key) || totalCost < reachable.get(key)) {
-                    reachable.set(key, totalCost);
-                    queue.push({x: next.x, y: next.y, cost: totalCost});
-                }
-            }
+export function isPassable(grid, x, y) {
+    const tile = grid[x]?.[y];
+    return !!tile && !BLOCKED.has(tile.type) && !tile.isIndestructible;
+}
+ 
+export const tileCost = (tile, mover = null) =>
+    tile.type === "mud" && !mover?.isImmuneToMud ? 2 : 1;
+ 
+function occupiedKeys(units, mover) {
+    const keys = new Set();
+    for (const u of units) if (u !== mover && alive(u)) keys.add(`${u.x},${u.y}`);
+    return keys;
+}
+ 
+// Dijkstra flood limited by budget. Includes the start tile at cost 0.
+export function getReachableTiles(grid, start, budget, units = [], mover = null) {
+    const occupied = occupiedKeys(units, mover);
+    const best = new Map([[`${start.x},${start.y}`, 0]]);
+    const open = [{ x: start.x, y: start.y, cost: 0 }];
+ 
+    while (open.length) {
+        open.sort((a, b) => a.cost - b.cost);
+        const cur = open.shift();
+        if (cur.cost > best.get(`${cur.x},${cur.y}`)) continue;
+        for (const [dx, dy] of DIRS) {
+            const nx = cur.x + dx, ny = cur.y + dy, key = `${nx},${ny}`;
+            if (!isPassable(grid, nx, ny) || occupied.has(key)) continue;
+            const cost = cur.cost + tileCost(grid[nx][ny], mover);
+            if (cost > budget || cost >= (best.get(key) ?? Infinity)) continue;
+            best.set(key, cost);
+            open.push({ x: nx, y: ny, cost });
         }
     }
-
-    return Array.from(reachable.entries()).map(([key, cost]) => {
-        let [x,y] = key.split(',').map(Number);
-        return {x, y, cost};
+    return [...best].map(([k, cost]) => {
+        const [x, y] = k.split(",").map(Number);
+        return { x, y, cost };
     });
 }
-
-export function findPath(startPos, targetPos, grid, obstacles, unity) {
-    let openSet = [{x: startPos.x, y: startPos.y, g: 0, h: tileDistance(startPos, targetPos), parent: null}];
-    let closedSet = new Set();
-
-    let getNodeKey = (node) => `${node.x},${node.y}`;
-
-    while (openSet.length > 0) {
-        // Sort by lowest f score (g + h)
-        openSet.sort((a,b) => (a.g + a.h) - (b.g + b.h));
-        let current = openSet.shift();
-        let currentKey = getNodeKey(current);
-
-        if (current.x === targetPos.x && current.y === targetPos.y) {
-            //Reconsturct path
-            let path = [];
-            let curr = current;
-            while (curr) {
-                path.unshift({x: curr.x, y: curr.y});
-                curr = curr.parent;
-            }
-            return path; // Array of coordinates from start to target
+ 
+// A*. Returns [start, ..., target] or []. The target tile may be occupied (it is the goal), nothing else may.
+export function findPath(grid, start, target, units = [], mover = null) {
+    const occupied = occupiedKeys(units, mover);
+    const tKey = `${target.x},${target.y}`;
+    const bestG = new Map([[`${start.x},${start.y}`, 0]]);
+    const open = [{ x: start.x, y: start.y, g: 0, f: tileDistance(start, target), parent: null }];
+ 
+    while (open.length) {
+        open.sort((a, b) => a.f - b.f);
+        const cur = open.shift();
+        if (cur.g > bestG.get(`${cur.x},${cur.y}`)) continue;
+        if (cur.x === target.x && cur.y === target.y) {
+            const path = [];
+            for (let n = cur; n; n = n.parent) path.unshift({ x: n.x, y: n.y });
+            return path;
         }
-        closedSet.add(currentKey);
-        
-        const neighbor = [
-            { x: current.x, y: current.y - 1 },
-            { x: current.x, y: current.y + 1 },
-            { x: current.x - 1, y: current.y },
-            { x: current.x + 1, y: current.y }
-        ];
-
-        for (let next of neighbor) {
-            if (next.x < 0 || next.x >= grid.length || next.y < 0 || next.y >= grid[0].length) {
-                continue;
-            }
-
-            let nextKey = `${next.x},${next.y}`;
-            if (closedSet.has(nextKey)) continue;
-
-            let tile = grid[next.x][next.y];
-
-            if (tile.type === "column" || tile.type === "natural_wall" || tile.type === "wall" || tile.type === "scrap" || tile.isIndestructible) {
-                continue;
-            }
-
-            let isOccupied = units.some(u => u.x === next.x && u.y === next.y && u.hp > 0 && !u.isDefeated);
-            if (isOccupied && (next.x !== targetPos.x || next.y !== targetPos.y)) {
-                continue; // Can't step through occupied tiles unless it's the final target destination
-            }
-
-            let moveCost = (tile.type === "mud") ? 2 : 1;
-            let tentativeG = current.g + moveCost;
-
-            let neighborNode = openSet.find(n => n.x === next.x && n.y === next.y);
-
-            if (!neighborNode) {
-                neighborNode = {
-                    x: next.x,
-                    y: next.y,
-                    g: tentativeG,
-                    h: tileDistance(next, targetPos),
-                    parent: current
-                };
-                openSet.push(neighborNode);
-            } else if (tentativeG < neighborNode.g) {
-                neighborNode.g = tentativeG;
-                neighborNode.parent = current;
-            }
+        for (const [dx, dy] of DIRS) {
+            const nx = cur.x + dx, ny = cur.y + dy, key = `${nx},${ny}`;
+            if (!isPassable(grid, nx, ny)) continue;
+            if (occupied.has(key) && key !== tKey) continue;
+            const g = cur.g + tileCost(grid[nx][ny], mover);
+            if (g >= (bestG.get(key) ?? Infinity)) continue;
+            bestG.set(key, g);
+            open.push({ x: nx, y: ny, g, f: g + tileDistance({ x: nx, y: ny }, target), parent: cur });
         }
     }
-    return []; // // Return empty array if no path exists around walls/obstacles
+    return [];
 }

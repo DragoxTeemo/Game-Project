@@ -20,6 +20,18 @@
             box-shadow: 0 0 20px rgba(0,0,0,0.5);
             image-rendering: pixelated;
         }
+        button {
+            padding: 10px 15px;
+            cursor: pointer;
+            font-weight: bold;
+            background: #333;
+            color: white;
+            border: 1px solid #777;
+            border-radius: 4px;
+        }
+        button:hover {
+            background: #444;
+        }
     </style>
 </head>
 <body>
@@ -34,7 +46,37 @@
         <button id="microBtn">Generate Area Map (Micro)</button>
     </div>
 
-    <!-- Import your script -->
-    <script type="module" src="./WorldGeneration.js"></script>
+    <!-- Wire up the module script properly -->
+    <script type="module">
+        //import { generateMicroMap, drawMicroMapVisual, generateValidatedMacroMap, drawMacroMapVisual } from './world/WorldGeneration.js';
+        import {generateMicroMap, drawMicroMapVisual, generateValidatedMacroMap, assignCampfiresToMacroMap} from './world/WorldGeneration.js';
+        const canvas = document.getElementById('mapCanvas');
+        const ctx = canvas.getContext('2d');
+        const statusText = document.getElementById('statusText');
+
+        function loadMicro() {
+            statusText.textContent = "Generating Micro Map...";
+            const grid = generateMicroMap(15, 15);
+            drawMicroMapVisual(grid, canvas, ctx);
+            statusText.textContent = "Micro Map Generated (15x15)";
+        }
+
+        function loadMacro() {
+            statusText.textContent = "Generating Macro Map...";
+            let groupLevel = Math.floor(Math.random() * 10) + 1;
+            let result = generateValidatedMacroMap(groupLevel);
+            drawMacroMapVisual(result, canvas, ctx);
+            statusText.textContent = `Macro Map Generated (Valid: ${result.success}, Level: ${groupLevel})`;
+        }
+
+        document.getElementById('microBtn').addEventListener('click', loadMicro);
+        document.getElementById('macroBtn').addEventListener('click', loadMacro);
+
+        // Load an initial macro map on startup
+        statusText.textContent = "Generating Initial Map...";
+        let initialMacro = generateValidatedMacroMap(1);
+        drawMacroMapVisual(initialMacro, canvas, ctx);
+        statusText.textContent = "Macro Map Generated (Valid: true)";
+    </script>
 </body>
 </html>

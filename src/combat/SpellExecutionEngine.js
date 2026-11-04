@@ -1,4 +1,4 @@
-import { CombatAction } from "./actions.js";
+import { CombatAction } from "./CombatAction.js";
 import { CombatMath } from "./CombatMath.js";
 
 /**
@@ -32,7 +32,7 @@ export function executeSpellCast(attacker, primaryTarget, spell, manaPool, targe
             if (!target || target.isDefeated) return;
             let rawDamage = CombatMath.calculateMagicDamage(attacker, target, spell.basePower);
             let finalDamage = Math.floor(rawDamage * resolvedMinigame.multiplier);
-            target.hp -= finalDamage;
+            CombatMath.applyDamage(target, finalDamage);
             hitResults.enemiesDamaged++;
         });
     }

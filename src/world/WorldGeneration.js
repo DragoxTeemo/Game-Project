@@ -60,12 +60,6 @@
 import { createNoise2D } from 'https://cdn.jsdelivr.net/npm/simplex-noise@4.0.1/+esm';
 const noise2D = createNoise2D();
 
-const canvas = document.getElementById('mapCanvas');
-const ctx = canvas.getContext('2d');
-const statusText = document.getElementById('statusText');
-const macroBtn = document.getElementById('macroBtn');
-const microBtn = document.getElementById('microBtn');
-
 let noiseSeedOffset = Math.random() * 1000;
 
 // 1. MICRO MAP GENERATION
@@ -132,7 +126,8 @@ export function generateMicroMap(width, height) {
     return grid;
 }
 
-export function drawMicroMapVisual(grid) {
+export function drawMicroMapVisual(grid, canvas, ctx) {
+    if (!canvas || !ctx) return;
     const tileSize = canvas.width / grid.length;
     const colors = { 
         floor: "#d3d3d3", 
@@ -155,99 +150,101 @@ export function drawMicroMapVisual(grid) {
 }
 
 export function generateValidatedMacroMap(groupLevel = 1) {
-    let roomCount = Math.min(20, Math.floor(6 + (groupLevel * 0.35))); 
-    let loopChance = Math.min(0.85, 0.15 + (groupLevel * 0.015)); 
-    let chestChance = Math.min(0.4, 0.1 + (groupLevel * 0.005));
+    let success = false;
+    let allNodes, roomCount, chestChance, loopChance;
 
-    let allNodes = new Map();
-    let occupiedCoords = new Set();
-    let currentX = 0, currentY = 0;
-    
-    let firstNode = { 
-        id: "Room_0", x: currentX, y: currentY, 
-        connections: [], enemies: 0, hasChest: false, isStart: true, isCampfire: false 
-    };
-    allNodes.set(firstNode.id, firstNode);
-    occupiedCoords.add(`${currentX},${currentY}`);
+    while (!success) {
+        roomCount = Math.min(20, Math.floor(6 + (groupLevel * 0.35))); 
+        loopChance = Math.min(0.85, 0.15 + (groupLevel * 0.015)); 
+        chestChance = Math.min(0.4, 0.1 + (groupLevel * 0.005));
 
-    let i = 1;
-    let currentActiveNode = firstNode;
-
-    while (i < roomCount) {
-        let directions = [{ x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 }];
-        directions.sort(() => Math.random() - 0.5);
+        allNodes = new Map();
+        let occupiedCoords = new Set();
+        let currentX = 0, currentY = 0;
         
-        let placedOne = false;
-        for (let dir of directions) {
-            let nextX = currentActiveNode.x + dir.x;
-            let nextY = currentActiveNode.y + dir.y;
-            let coordKey = `${nextX},${nextY}`;
+        let firstNode = { 
+            id: "Room_0", x: currentX, y: currentY, 
+            connections: [], enemies: 0, hasChest: false, isStart: true, isCampfire: false 
+        };
+        allNodes.set(firstNode.id, firstNode);
+        occupiedCoords.add(`${currentX},${currentY}`);
 
-            if (!occupiedCoords.has(coordKey)) {
-                let newNodeId = `Room_${i}`;
-                let enemyScalingCount = Math.floor(Math.random() * 2) + Math.floor(groupLevel / 10);
+        let i = 1;
+        let currentActiveNode = firstNode;
 
-                let newNode = { 
-                    id: newNodeId, x: nextX, y: nextY, 
-                    connections: [currentActiveNode.id], 
-                    enemies: Math.max(1, enemyScalingCount), 
-                    hasChest: Math.random() < chestChance,
-                    isStart: false,
-                    isCampfire: false 
-                };
-                
-                currentActiveNode.connections.push(newNodeId);
-                allNodes.set(newNodeId, newNode);
-                occupiedCoords.add(coordKey);
-                
-                currentActiveNode = Math.random() > 0.4 ? newNode : firstNode;
-                i++;
-                placedOne = true;
-                break;
+        while (i < roomCount) {
+            let directions = [{ x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 }];
+            directions.sort(() => Math.random() - 0.5);
+            
+            let placedOne = false;
+            for (let dir of directions) {
+                let nextX = currentActiveNode.x + dir.x;
+                let nextY = currentActiveNode.y + dir.y;
+                let coordKey = `${nextX},${nextY}`;
+
+                if (!occupiedCoords.has(coordKey)) {
+                    let newNodeId = `Room_${i}`;
+                    let enemyScalingCount = Math.floor(Math.random() * 2) + Math.floor(groupLevel / 10);
+
+                    let newNode = { 
+                        id: newNodeId, x: nextX, y: nextY, 
+                        connections: [currentActiveNode.id], 
+                        enemies: Math.max(1, enemyScalingCount), 
+                        hasChest: Math.random() < chestChance,
+                        isStart: false,
+                        isCampfire: false 
+                    };
+                    
+                    currentActiveNode.connections.push(newNodeId);
+                    allNodes.set(newNodeId, newNode);
+                    occupiedCoords.add(coordKey);
+                    
+                    currentActiveNode = Math.random() > 0.4 ? newNode : firstNode;
+                    i++;
+                    placedOne = true;
+                    break;
+                }
+            }
+
+            if (!placedOne) {
+                let nodeKeys = Array.from(allNodes.keys());
+                currentActiveNode = allNodes.get(nodeKeys[Math.floor(Math.random() * nodeKeys.length)]);
             }
         }
 
-        if (!placedOne) {
-            let nodeKeys = Array.from(allNodes.keys());
-            currentActiveNode = allNodes.get(nodeKeys[Math.floor(Math.random() * nodeKeys.length)]);
-        }
-    }
-
-    // Add multi-choice loops
-    let nodeList = Array.from(allNodes.values());
-    if (groupLevel > 5) {
-        for (let nodeA of nodeList) {
-            for (let nodeB of nodeList) {
-                if (nodeA.id !== nodeB.id && !nodeA.connections.includes(nodeB.id)) {
-                    let dist = Math.abs(nodeA.x - nodeB.x) + Math.abs(nodeA.y - nodeB.y);
-                    if (dist === 1 && Math.random() < loopChance) {
-                        nodeA.connections.push(nodeB.id);
-                        nodeB.connections.push(nodeA.id);
+        let nodeList = Array.from(allNodes.values());
+        if (groupLevel > 5) {
+            for (let nodeA of nodeList) {
+                for (let nodeB of nodeList) {
+                    if (nodeA.id !== nodeB.id && !nodeA.connections.includes(nodeB.id)) {
+                        let dist = Math.abs(nodeA.x - nodeB.x) + Math.abs(nodeA.y - nodeB.y);
+                        if (dist === 1 && Math.random() < loopChance) {
+                            nodeA.connections.push(nodeB.id);
+                            nodeB.connections.push(nodeA.id);
+                        }
                     }
                 }
             }
         }
-    }
 
-    // --- CHEST SEPARATION PASS ---
-    for (let nodeA of nodeList) {
-        if (nodeA.hasChest) {
-            for (let neighborId of nodeA.connections) {
-                let neighbor = allNodes.get(neighborId);
-                if (neighbor && neighbor.hasChest && !neighbor.isStart) {
-                    neighbor.hasChest = false;
+        for (let nodeA of nodeList) {
+            if (nodeA.hasChest) {
+                for (let neighborId of nodeA.connections) {
+                    let neighbor = allNodes.get(neighborId);
+                    if (neighbor && neighbor.hasChest && !neighbor.isStart) {
+                        neighbor.hasChest = false;
+                    }
                 }
             }
         }
+
+        assignCampfiresToMacroMap(allNodes, roomCount);
+
+        let startNode = allNodes.get("Room_0");
+        success = isMapFullyAccessible(startNode, allNodes);
     }
 
-    // --- CAMPFIRE ASSIGNMENT PASS (FIXED: Now properly invoked) ---
-    assignCampfiresToMacroMap(allNodes, roomCount);
-
-    let startNode = allNodes.get("Room_0");
-    let success = isMapFullyAccessible(startNode, allNodes);
-
-    return { success, allNodes, groupLevel };
+    return { success: true, allNodes, groupLevel };
 }
 
 function assignCampfiresToMacroMap(allNodes, roomCount) {
@@ -277,7 +274,8 @@ function assignCampfiresToMacroMap(allNodes, roomCount) {
     }
 }
 
-export function drawMacroMapVisual(macroData) {
+export function drawMacroMapVisual(macroData, canvas, ctx) {
+    if (!canvas || !ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     let nodes = Array.from(macroData.allNodes.values());
     if (nodes.length === 0) return;
@@ -363,13 +361,12 @@ function injectColumns(grid, width, height, rarityChance = 0.12) {
         for (let y = minY; y <= maxY; y++) {
             if (Math.random() > rarityChance) continue;
 
-            // Define the 5-tile cross pattern coordinates
             let crossTile = [
-                {x: x, y: y}, // center 
-                {x: x, y: y - 1}, // north neighbor
-                {x: x, y: y + 1}, // south neighbor
-                {x: x - 1, y: y}, // west neighbor
-                {x: x + 1, y: y}, // east neighbor
+                {x: x, y: y}, 
+                {x: x, y: y - 1}, 
+                {x: x, y: y + 1}, 
+                {x: x - 1, y: y}, 
+                {x: x + 1, y: y}, 
             ];
 
             let canPlace = crossTile.every(t => {
@@ -382,210 +379,13 @@ function injectColumns(grid, width, height, rarityChance = 0.12) {
                     grid[t.x][t.y] = { 
                         type: "column", 
                         isIndestructible: true, 
-                        isCover: true           
+                        isCover: true            
                     };
                 }
-                x += 2; // skip to prevent overlapping 
+                x += 2; 
                 break;
             }
         }
     }
     return grid;
 }
-// UI Event binding
-macroBtn.addEventListener('click', () => {
-    statusText.textContent = "Generating Macro Map...";
-    let macroData = generateValidatedMacroMap(Math.floor(Math.random() * 10) + 1);
-    drawMacroMapVisual(macroData);
-    statusText.textContent = `Macro Map Generated (Valid: ${macroData.success})`;
-});
-
-microBtn.addEventListener('click', () => {
-    statusText.textContent = "Generating Micro Map...";
-    let microGrid = generateMicroMap(15, 15);
-    drawMicroMapVisual(microGrid);
-    statusText.textContent = "Micro Map Generated (15x15)";
-});
-
-// Initial micro render on script load
-let initialMicro = generateMicroMap(15, 15);
-drawMicroMapVisual(initialMicro);
-
-// Initial macro render 
-let initialMacroData = generateValidatedMacroMap(1);
-drawMacroMapVisual(initialMacroData);
-
-/**
- * 
- * Generates an organic cave/wall system on a 15x15 micro-grid.
- * Enforces indestructible natural walls, scrap spawn distribution, 
- * and guaranteed 4-way perimeter accessibility via BFS validation.
- */
-
-/**
-function generateValidatedCaveMicroMap(width = 15, height = 15) {
-    let grid = [];
-    let maxAttempts = 50;
-    let attempt = 0;
-    let isValid = false;
-
-    while (!isValid && attempt < maxAttempts) {
-        attempt++;
-        grid = createRawCaveLayout(width, height);
-        isValid = validateCaveAccessibility(grid, width, height);
-    }
-
-    // Fallback safety grid if max attempts are somehow exceeded
-    if (!isValid) {
-        grid = createFallbackOpenGrid(width, height);
-    }
-
-    return grid;
-}
-
-function createRawCaveLayout(width, height) {
-    let grid = [];
-    let potentialScraps = [];
-    noiseSeedOffset += 31.7;
-
-    // Phase 1: Initial Simplex noise pass for natural walls and floors
-    for (let x = 0; x < width; x++) {
-        grid[x] = [];
-        for (let y = 0; y < height; y++) {
-            let nVal = (noise2D((x + noiseSeedOffset) * 0.15, (y + noiseSeedOffset) * 0.15) + 1) / 2;
-            
-            // Default tile properties
-            let tileType = "floor";
-            let isIndestructible = false;
-            let isCover = false;
-
-            // Enforce open borders in the center 3-5 tiles of all sides
-            let isCenterMargin = (
-                (x >= 5 && x <= 9 && (y === 0 || y === height - 1)) ||
-                (y >= 5 && y <= 9 && (x === 0 || x === width - 1))
-            );
-
-            if (!isCenterMargin) {
-                if (nVal > 0.72) {
-                    tileType = "natural_wall";
-                    isIndestructible = true; // Cannot be destroyed except by specialized mechanics
-                } else if (nVal > 0.58) {
-                    tileType = "scrap";
-                    isCover = true; // Breakable via Ace's sword
-                    potentialScraps.push({ x, y, nVal });
-                } else if (nVal > 0.48) {
-                    tileType = "mud"; // Movement penalty only
-                }
-            }
-
-            grid[x][y] = { type: tileType, isIndestructible, isCover };
-        }
-    }
-
-    // Phase 2: Cellular Automata smoothing pass for organic cave clusters
-    let smoothedGrid = JSON.parse(JSON.stringify(grid));
-    for (let x = 1; x < width - 1; x++) {
-        for (let y = 1; y < height - 1; y++) {
-            // Do not alter perimeter margins
-            let isPerimeter = (x === 0 || x === width - 1 || y === 0 || y === height - 1);
-            if (isPerimeter) continue;
-
-            let wallNeighbors = 0;
-            for (let dx = -1; dx <= 1; dx++) {
-                for (let dy = -1; dy <= 1; dy++) {
-                    if (dx === 0 && dy === 0) continue;
-                    if (grid[x + dx][y + dy].type === "natural_wall") {
-                        wallNeighbors++;
-                    }
-                }
-            }
-
-            // Apply smoothing rules (cave generation life/death threshold)
-            if (wallNeighbors >= 5) {
-                smoothedGrid[x][y] = { type: "natural_wall", isIndestructible: true, isCover: false };
-            } else if (wallNeighbors <= 2 && grid[x][y].type === "natural_wall") {
-                smoothedGrid[x][y] = { type: "floor", isIndestructible: false, isCover: false };
-            }
-        }
-    }
-
-    return smoothedGrid;
-}
-
-function validateCaveAccessibility(grid, width, height) {
-    // Define entry checkpoints in the center of all 4 sides
-    let checkpoints = [
-        { x: Math.floor(width / 2), y: 0 },          // Top Center
-        { x: Math.floor(width / 2), y: height - 1 }, // Bottom Center
-        { x: 0, y: Math.floor(height / 2) },         // Left Center
-        { x: width - 1, y: Math.floor(height / 2) }  // Right Center
-    ];
-
-    let start = checkpoints[0];
-    let visited = new Set();
-    let queue = [start];
-    visited.add(`${start.x},${start.y}`);
-
-    while (queue.length > 0) {
-        let current = queue.shift();
-        let neighbors = [
-            { x: current.x, y: current.y - 1 },
-            { x: current.x, y: current.y + 1 },
-            { x: current.x - 1, y: current.y },
-            { x: current.x + 1, y: current.y }
-        ];
-
-        for (let n of neighbors) {
-            if (n.x >= 0 && n.x < width && n.y >= 0 && n.y < height) {
-                let tile = grid[n.x][n.y];
-                let key = `${n.x},${n.y}`;
-                // Passable if not an indestructible natural wall
-                if (!tile.isIndestructible && !visited.has(key)) {
-                    visited.add(key);
-                    queue.push(n);
-                }
-            }
-        }
-    }
-
-    // Verify that all major side checkpoints are mutually reachable via BFS
-    for (let cp of checkpoints) {
-        if (!visited.has(`${cp.x},${cp.y}`)) {
-            return false; // Map is blocked/fragmented
-        }
-    }
-
-    return true;
-}
-
-function createFallbackOpenGrid(width, height) {
-    let grid = [];
-    for (let x = 0; x < width; x++) {
-        grid[x] = [];
-        for (let y = 0; y < height; y++) {
-            grid[x][y] = { type: "floor", isIndestructible: false, isCover: false };
-        }
-    }
-    return grid;
-}
-
-function drawCaveMicroMapVisual(grid) {
-    const colors = { 
-        floor: "#d3d3d3", 
-        mud: "#8b5a2b", 
-        scrap: "#ff4500", 
-        natural_wall: "#333333" 
-    };
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    for (let x = 0; x < grid.length; x++) {
-        for (let y = 0; y < grid[x].length; y++) {
-            let tile = grid[x][y];
-            ctx.fillStyle = colors[tile.type] || "#000000";
-            ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
-            ctx.strokeStyle = "#111";
-            ctx.strokeRect(x * tileSize, y * tileSize, tileSize, tileSize);
-        }
-    }
-}
-*/

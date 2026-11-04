@@ -1,114 +1,122 @@
-import { MaskedRiderRegistry } from "./riderConfig.js";
-import { MaskedRider } from "./MaskedRider";
+import { MaskedRiderRegistry } from "../data/riderConfig.js";
+import { MaskedRider } from "../entities/MaskedRider.js";
 import { EncounterDirector, calculateGroupAverageLevel, distributeAdjustedEXP } from "./EncounterDirector.js";
 import { SharedManaPool } from "./ManaSystem.js";
-import { executeWeaponAttack } from "./weaponExecutionEngine.js";
-import { executeSpellCast } from "./spellExecutionEngine.js";
-import { getFoeAvailableActions } from "./foeSpells.js";
+import { executeWeaponAttack } from "../combat/weaponExecutionEngine.js";
+import { executeSpellCast } from "../combat/SpellExecutionEngine.js";
+import { executeFirearmAction, executeBasicAttack } from "./combat/firearmEngine.js";
+import { getFoeBasicActions } from "../data/foeConfig.js";
+import { getReachableTiles, movementBudget } from "../combat/Pathfinding.js";
+import { createOpenGrid, placeUnits } from "../combat/placement.js";
+
 
 
 
 export class GameDirector {
     constructor() {
         this.party = [];
+        this.benchedParty = [];
         this.activeEnemies = [];
+        this.grid = null;
         this.heroMana = new SharedManaPool(20, 100);
         this.villainMana = new SharedManaPool(20, 100);
-        this.currentRound = 0; 
+        this.currentRound = 0;
         this.turnQueue = [];
-        this.combatEnded = false; 
-        this.currentGroupLevel = 1; 
+        this.combatEnded = false;
+        this.currentGroupLevel = 1;
+
         this.gameState = "MAP_EXPLORATION"; // MAP_EXPLORATION, COMBAT, CUTSCENE
+        this.rescueTimerId = null;
+        this.finisherTimerId = null;
     }
 
     initializeParty(riderKeys) {
         this.party = riderKeys.map(key => {
-            let registryData = MaskedRiderRegistry[key];
-            let rider = new MaskedRider(key, registryData);
-            rider.faction = "hero"; // buildTurnQueue's tie-break and by the dispatcher
+            const rider = new MaskedRider(key, MaskedRiderRegistry[key]);
+            rider.faction = "hero";
+            rider.x = 0; rider.y = 0;
             return rider;
         });
-        
-        // Ensure group level is calculated right after party creation
         this.updateGroupLevel();
-        console.log("Party successfully initialized:", this.party.map(p => p.codename), `(Group Level: ${this.currentGroupLevel})`);
     }
 
-    updateGroupLevel() {
-        this.currentGroupLevel = calculateGroupAverageLevel(this.party);
+
+    updateGroupLevel() { 
+        this.currentGroupLevel = calculateGroupAverageLevel(this.party); 
     }
 
-    transitionToCombat(roomNode) {
+    // grid: a micro map from the world generator (grid[x][y]); falls back to an open 15x15
+    transitionToCombat(roomNode, grid = null) {
+        clearTimeout(this.rescueTimerId);
+        clearTimeout(this.finisherTimerId);
         this.gameState = "COMBAT";
         this.currentRound = 0;
-        this.combatEnded = false; 
+        this.combatEnded = false;
         this.heroMana.reset();
         this.villainMana.reset();
         this.updateGroupLevel();
+        this.grid = grid ?? createOpenGrid(15, 15);
         this.activeEnemies = EncounterDirector.generateRoomEncounter(this.currentGroupLevel);
-        this.activeEnemies.forEach(enemy => {enemy.faction = "villain"});
+        this.activeEnemies.forEach(e => { e.faction = "villain"; });
+        placeUnits(this.grid, this.party, this.activeEnemies);
         this.advanceRound();
-
-        console.log(`Combat initiated! Group Level: ${this.currentGroupLevel}`, this.activeEnemies.map(e => `${e.tier} ${e.archetype} (Lvl ${e.level})`));
     }
 
     advanceRound() {
         this.currentRound++;
-        let heroTotal = this.heroMana.advanceRound();
-        let villainTotal = this.villainMana.advanceRound();
+        this.heroMana.advanceRound();
+        this.villainMana.advanceRound();
         this.turnQueue = this.buildTurnQueue();
-        console.log(`Round ${this.currentRound} - Hero Mana: ${heroTotal}/${this.heroMana.cap} | Villain Mana: ${villainTotal}/${this.villainMana.cap}`);
-        console.log(`Turn order:`, this.turnQueue.map(u => `${u.codename || u.title} (SPD ${u.speed})`));
     }
+
 
     // Strict Speed-based turn order: every conscious combatant from both sides acts once per round, 
     // highest speed first. On a tied speed, hero always goes before villain.
     buildTurnQueue() {
-        let combatants = [...this.party, ...this.activeEnemies].filter(unit => !unit.isDefeated && unit.hp > 0);
-        return combatants.sort((a, b) => {
-            let speedDiff = (b.speed || 0) - (a.speed || 0);
-            if (speedDiff !== 0) return speedDiff;
-            if (a.faction === b.faction) return 0;
-            return a.faction === "hero" ? -1 : 1;
+        return [...this.party, ...this.activeEnemies].filter(alive).sort((a, b) => {
+            const d = (b.speed || 0) - (a.speed || 0);
+            if (d !== 0) return d;
+            return a.faction === b.faction ? 0 : a.faction === "hero" ? -1 : 1;
         });
     }
 
     getNextActor() {
-        // Skip units that were killed or defeated earlier in the current round
-        while (this.turnQueue.length > 0) {
-            let actor = this.turnQueue.shift();
-            if (actor && actor.hp > 0 && !actor.isDefeated) {
-                return actor;
-            }
+        while (this.turnQueue.length) {
+            const a = this.turnQueue.shift();
+            if (alive(a)) return a;
         }
         return null;
     }
 
     processNextTurn() {
         if (this.combatEnded) return null;
- 
         let actor = this.getNextActor();
-        if (!actor) {
-            this.advanceRound();
-            actor = this.getNextActor();
+        if (!actor) { 
+            this.advanceRound(); 
+            actor = this.getNextActor(); 
         }
-        if (!actor) return null;
+        if (!actor) 
+            return null;
  
         this.dispatchActorTurn(actor);
  
-        // Check party defeat state first and make it mutually exclusive with enemy defeat / finisher
-        let partyDown = this.checkPartyDefeatState();
-        if (partyDown) {
-            this.combatEnded = true;
-            return actor;
+        if (this.checkPartyDefeatState()) { 
+            this.combatEnded = true; 
+            return actor; 
         }
-
-        let enemiesDown = this.checkEnemyDefeatState();
-        if (enemiesDown) {
+        if (this.checkEnemyDefeatState()) 
             this.combatEnded = true;
-        }
- 
         return actor;
+    }
+
+    // Move only to a tile inside the unit's budget; prevents UI or AI from teleporting.
+    moveUnit(unit, dest) {
+        if (!dest) return false;
+        const units = [...this.party, ...this.activeEnemies].filter(alive);
+        const ok = getReachableTiles(this.grid, unit, movementBudget(unit.speed), units, unit)
+            .some(t => t.x === dest.x && t.y === dest.y);
+        if (ok) { unit.x = dest.x; unit.y = dest.y; }
+        return ok;
     }
 
     // Branches on actor.faction. Heroes pull from a queued player choice (stubbed - no
@@ -116,61 +124,50 @@ export class GameDirector {
     // spells available to their archetype. Either path routes into resolveAction() with
     // the correct shared mana pool for that side.
     dispatchActorTurn(actor) {
-        let manaPool = actor.faction === "hero" ? this.heroMana : this.villainMana;
         if (actor.faction === "hero") {
-            let queuedAction = this.getQueuePlayerAction(actor);
-            if (!queuedAction) {
-                console.log(`${actor.codename} is waiting on a player action (input handler not yet wired up).`);
-                return;
-            }
-            this.resolveAction(actor, queuedAction.item, queuedAction.target, manaPool, queuedAction.targetPool);
-        } else {
-            let availableActions = getFoeAvailableActions(actor.archetype);
-            let choice = actor.chooseAction(this.party, this.activeEnemies, availableActions);
-            if (!choice || !choice.action) {
-                console.log(`${actor.title} has no valid action this turn.`);
-                return;
-            }
-
-            let chosenActionItem = choice.action.action || choice.action;
-            
-            this.resolveAction(actor, chosenActionItem, choice.target, manaPool, this.party);
+            const q = this.getQueuePlayerAction(actor);
+            if (!q) return; // waiting on input
+            if (q.moveTo) this.moveUnit(actor, q.moveTo);
+            if (q.item) this.resolveAction(actor, q.item, q.target, this.heroMana, this.activeEnemies, q);
+            return;
         }
+        const plan = actor.takeTurn({
+            grid: this.grid,
+            party: this.party,
+            allies: this.activeEnemies,
+            availableActions: getFoeBasicActions(actor.archetype), // + foe spells once foeSpells.js exists
+            manaPool: this.villainMana
+        });
+        if (plan.moveTo) { actor.x = plan.moveTo.x; actor.y = plan.moveTo.y; } // AI only picks reachable tiles
+        if (plan.action) this.resolveAction(actor, plan.action, plan.target, this.villainMana, this.party, {});
+    }
+
+    
+    // Input handler should return { item, target, rounds, mode: "fire"|"reload", moveTo?, aimDirection? }.
+    // BlazE's rifle needs no target. Reload is { item: firearm, mode: "reload" }.
+    getQueuePlayerAction(actor) { 
+        return null; 
     }
     
-    // PLACEHOLDER: no player input system exists yet. Should eventually return
-    // { item, target, targetPool } sourced from a UI-queued choice for this hero.
-    // Returns null until that's built, which is why hero turns currently no-op.
-
-    getQueuePlayerAction(actor) {
-        return null;
-    }
-
     // Shared routing between the two execution engines: a MagicSpell always carries
     // magicCost (even 0 is a defined number), a CharacterWeapon never does - that's
     // the distinguishing field used to pick the engine.
-    resolveAction(actor, item, target, manaPool, targetPool) {
-        if (!item) 
-            return { 
-                success: false, 
-                reason: "No action item provided."
-        };
-        if (item.magicCost !== undefined) {
-            return executeSpellCast(actor, target, item, manaPool, targetPool);
+    resolveAction(actor, item, target, manaPool, targetPool, extra = {}) {
+        if (!item) return { success: false, reason: "No action item provided." };
+        if (item.type === "Magic") return executeSpellCast(actor, target, item, manaPool, targetPool);
+        if (item.type === "FIREARM") {
+            return executeFirearmAction(actor, item, { mode: extra.mode, target, rounds: extra.rounds, grid: this.grid, enemies: targetPool });
         }
-        // NOTE: obstacles/grid/aimDirection aren't threaded through processNextTurn yet,
-        // so AOE_CONE weapon attacks (Ace's greatsword) will no-op here until they are.
-        return executeWeaponAttack(actor, target, item, [], null, targetPool, null);
-    }  
+        if (item.minigameType) {
+            return executeWeaponAttack(actor, target, item, [], this.grid, targetPool, extra.aimDirection ?? null);
+        }
+        return executeBasicAttack(actor, item, target, this.grid);
+    }
 
     resolveCombatVictory() {
-        if (this.activeEnemies.length === 0) return;
-        let totalXpPool = this.activeEnemies.reduce((sum, enemy) => sum + (enemy.xpReward || 0), 0);    
-
-        distributeAdjustedEXP(this.party, totalXpPool);
-        
-        console.log(`Victory! Distributed total pool of ${totalXpPool} XP across party.`);
-
+        if (!this.activeEnemies.length) return;
+        const pool = this.activeEnemies.reduce((s, e) => s + (e.xpReward || 0), 0);
+        distributeAdjustedEXP(this.party, this.benchedParty, pool);
         this.activeEnemies = [];
         this.gameState = "MAP_EXPLORATION";
         this.currentRound = 0;
@@ -182,9 +179,7 @@ export class GameDirector {
     }
     
     checkPartyDefeatState() {
-        // Guard against empty party arrays to avoid true on empty every() calls
-        let allUnconscious = this.party.length > 0 && this.party.every(rider => rider.hp <= 0 || rider.isDefeated);
-        if (allUnconscious) {
+        if (this.party.length > 0 && this.party.every(r => !alive(r))) {
             this.triggerRescueCutscene();
             return true;
         }
@@ -200,28 +195,18 @@ export class GameDirector {
      */
     triggerRescueCutscene() {
         this.gameState = "CUTSCENE";
-        console.log("All active Masked Riders defeated! Benched allies arrive to carry the team away...");
-        
-        // Clear active combat data
         this.activeEnemies = [];
         this.turnQueue = [];
-
-        // Store timeout ID and reset party HP & state upon recovery
         this.rescueTimerId = setTimeout(() => {
-            this.party.forEach(rider => {
-                rider.hp = Math.floor(rider.maxHp * 0.25);
-                rider.isDefeated = false;
-            });
+            this.party.forEach(r => { r.hp = Math.floor(r.maxHp * 0.25); r.isDefeated = false; });
             this.gameState = "MAP_EXPLORATION";
             this.combatEnded = false;
             this.rescueTimerId = null;
-            console.log("Party recovered at safe zone. Resuming exploration.");
         }, 3000);
     }
 
     checkEnemyDefeatState() {
-        let allEnemiesDown = this.activeEnemies.every(enemy => enemy.hp <= 0 || enemy.isDefeated);
-        if (allEnemiesDown && this.activeEnemies.length > 0) {
+        if (this.activeEnemies.length > 0 && this.activeEnemies.every(e => !alive(e))) {
             this.triggerRiderFinisher();
             return true;
         }
@@ -230,13 +215,9 @@ export class GameDirector {
 
     triggerRiderFinisher() {
         this.gameState = "FINISHER";
-        console.log("All threats neutralized! Executing universal Rider Finisher...");
-        
-        setTimeout(() => {
-            this.activeEnemies.forEach(enemy => {
-                enemy.hp = 0;
-                enemy.isDefeated = true;
-            });
+        this.finisherTimerId = setTimeout(() => {
+            this.activeEnemies.forEach(e => { e.hp = 0; e.isDefeated = true; });
+            this.finisherTimerId = null;
             this.resolveCombatVictory();
         }, 2000);
     }

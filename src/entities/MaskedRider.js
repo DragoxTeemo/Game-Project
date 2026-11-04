@@ -52,7 +52,7 @@ export class MaskedRider {
             }
         } else {
             this.hasForms = false;
-            this.statAffinities = registryData.statAffinities || registryData.statweight || {
+            this.statAffinities = registryData.statAffinities || registryData.statWeight || {
                 strength: 1.0, 
                 defense: 1.0, 
                 magic: 1.0, 

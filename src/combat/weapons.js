@@ -33,6 +33,4 @@ export const CHARACTER_WEAPONS = {
     ROSE: new CharacterWeapon("Plasma Whip", WeaponType.WHIP, 45, 3, "AOE", "TIME_Bar"),
     STRIKE: new CharacterWeapon("Pulse Gauntlets", WeaponType.GAUNTLET, 40, 1, "SINGLE", "SPAM"),
     STAR: new CharacterWeapon("Dragon Claws", WeaponType.DRAGON_CLAW, 55, 1, "SINGLE", "TIMING")
-
-
 }
