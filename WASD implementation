@@ -1,0 +1,46 @@
+const MOVEMENT_DIRECTIONS = {
+    arrowup: { x: 0, y: -1 },
+    w: { x: 0, y: -1 },
+    arrowdown: { x: 0, y: 1 },
+    s: { x: 0, y: 1 },
+    arrowleft: { x: -1, y: 0 },
+    a: { x: -1, y: 0 },
+    arrowright: { x: 1, y: 0 },
+    d: { x: 1, y: 0 }
+};
+
+export class WASD {
+    constructor() {
+        this.pressedKeys = new Set();
+    }
+
+    handleKeyDown(key) {
+        const normalizedKey = String(key).toLowerCase();
+        if (!MOVEMENT_DIRECTIONS[normalizedKey]) {
+            return false;
+        }
+
+        this.pressedKeys.add(normalizedKey);
+        return true;
+    }
+
+    handleKeyUp(key) {
+        return this.pressedKeys.delete(String(key).toLowerCase());
+    }
+
+    getDirection() {
+        let x = 0;
+        let y = 0;
+        for (const key of this.pressedKeys) {
+            x += MOVEMENT_DIRECTIONS[key].x;
+            y += MOVEMENT_DIRECTIONS[key].y;
+        }
+
+        const length = Math.hypot(x, y);
+        return length === 0 ? { x: 0, y: 0 } : { x: x / length, y: y / length };
+    }
+
+    clear() {
+        this.pressedKeys.clear();
+    }
+}
