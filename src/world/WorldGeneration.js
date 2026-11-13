@@ -130,7 +130,7 @@ export function drawMicroMapVisual(grid, canvas, ctx) {
     if (!canvas || !ctx) return;
     const tileSize = canvas.width / grid.length;
     const colors = { 
-        floor: "#d3d3d3", 
+        floor: "#918c82", 
         mud: "#8b5a2b", 
         scrap: "#ff4500", 
         column: "#65788e", 
@@ -162,9 +162,10 @@ export function generateValidatedMacroMap(groupLevel = 1) {
         let occupiedCoords = new Set();
         let currentX = 0, currentY = 0;
         
+        let startingEnemies = Math.max(1, Math.floor(Math.random() * 2) + Math.floor(groupLevel / 10));
         let firstNode = { 
             id: "Room_0", x: currentX, y: currentY, 
-            connections: [], enemies: 0, hasChest: false, isStart: true, isCampfire: false 
+            connections: [], enemies: startingEnemies, hasChest: false, isStart: true, isCampfire: false 
         };
         allNodes.set(firstNode.id, firstNode);
         occupiedCoords.add(`${currentX},${currentY}`);
@@ -227,6 +228,7 @@ export function generateValidatedMacroMap(groupLevel = 1) {
             }
         }
 
+        // Prevent adjacent chests
         for (let nodeA of nodeList) {
             if (nodeA.hasChest) {
                 for (let neighborId of nodeA.connections) {
@@ -241,7 +243,40 @@ export function generateValidatedMacroMap(groupLevel = 1) {
         assignCampfiresToMacroMap(allNodes, roomCount);
 
         let startNode = allNodes.get("Room_0");
-        success = isMapFullyAccessible(startNode, allNodes);
+        
+        // RULE: Ensure Room_0 is NEVER surrounded on all four sides
+        let orthogonalDirs = [{ x: 0, y: 1 }, { x: 0, y: -1 }, { x: 1, y: 0 }, { x: -1, y: 0 }];
+        let surroundingCount = 0;
+        for (let dir of orthogonalDirs) {
+            let checkKey = `${startNode.x + dir.x},${startNode.y + dir.y}`;
+            if (occupiedCoords.has(checkKey)) {
+                surroundingCount++;
+            }
+        }
+
+        let isFullyAccessible = isMapFullyAccessible(startNode, allNodes);
+
+        // RULE: Ensure NO campfire is directly connected to a chest room
+        let invalidCampfireChestConnection = false;
+        for (let node of nodeList) {
+            if (node.isCampfire) {
+                for (let neighborId of node.connections) {
+                    let neighbor = allNodes.get(neighborId);
+                    if (neighbor && neighbor.hasChest) {
+                        invalidCampfireChestConnection = true;
+                        break;
+                    }
+                }
+            }
+            if (invalidCampfireChestConnection) break;
+        }
+
+        // Fail validation if boxed in, unreachable, or has an illegal campfire-to-chest connection
+        if (surroundingCount === 4 || !isFullyAccessible || invalidCampfireChestConnection) {
+            success = false;
+        } else {
+            success = true;
+        }
     }
 
     return { success: true, allNodes, groupLevel };
@@ -253,7 +288,15 @@ function assignCampfiresToMacroMap(allNodes, roomCount) {
 
     let candidateNodes = Array.from(allNodes.values()).filter(node => {
         let isAdjacentToSpawn = node.connections.includes("Room_0");
-        return !node.isStart && !node.hasChest && !isAdjacentToSpawn;
+        
+        // Check if any neighbor has a chest
+        let touchesChest = node.connections.some(neighborId => {
+            let neighbor = allNodes.get(neighborId);
+            return neighbor && neighbor.hasChest;
+        });
+
+        // STRICT RULE: Never start, never Room_0, never has chest, never adjacent to spawn, never touch a chest room
+        return !node.isStart && node.id !== "Room_0" && !node.hasChest && !isAdjacentToSpawn && !touchesChest;
     });
 
     candidateNodes.sort(() => Math.random() - 0.5);
@@ -353,39 +396,69 @@ function isMapFullyAccessible(startNode, allNodes) {
     return visited.size === allNodes.size;
 }
 
-function injectColumns(grid, width, height, rarityChance = 0.12) {
+export function injectColumns(grid, width, height, minSpacing = 4, rarityChance = 0.2) {
     let minX = 3, maxX = width - 4;
     let minY = 3, maxY = height - 4;
 
+    let placedColumnCenters = [];
+    let candidates = [];
+
+    // Step 1: Gather all valid anchor points for column clusters
     for (let x = minX; x <= maxX; x++) {
         for (let y = minY; y <= maxY; y++) {
-            if (Math.random() > rarityChance) continue;
-
-            let crossTile = [
-                {x: x, y: y}, 
-                {x: x, y: y - 1}, 
-                {x: x, y: y + 1}, 
-                {x: x - 1, y: y}, 
-                {x: x + 1, y: y}, 
-            ];
-
-            let canPlace = crossTile.every(t => {
-                let tile = grid[t.x]?.[t.y];
-                return tile && (tile.type === "floor" || tile.type === "mud");
-            });
-
-            if (canPlace) {
-                for (let t of crossTile) {
-                    grid[t.x][t.y] = { 
-                        type: "column", 
-                        isIndestructible: true, 
-                        isCover: true            
-                    };
-                }
-                x += 2; 
-                break;
+            let tile = grid[x]?.[y];
+            if (tile && (tile.type === "floor" || tile.type === "mud")) {
+                candidates.push({ x, y });
             }
         }
     }
+
+    // Step 2: Shuffle candidates to ensure organic, non-biased randomness
+    candidates.sort(() => Math.random() - 0.5);
+
+    // Step 3: Evaluate candidates with a strict minimum spacing radius
+    for (let candidate of candidates) {
+        let { x, y } = candidate;
+
+        // Define the 3x3 or cross footprint for the column structure
+        let crossTile = [
+            { x: x, y: y }, 
+            { x: x, y: y - 1 }, 
+            { x: x, y: y + 1 }, 
+            { x: x - 1, y: y }, 
+            { x: x + 1, y: y }
+        ];
+
+        // Check if all tiles in the footprint are currently open floor/mud
+        let canPlace = crossTile.every(t => {
+            let tObj = grid[t.x]?.[t.y];
+            return tObj && (tObj.type === "floor" || tObj.type === "mud");
+        });
+
+        if (!canPlace) continue;
+
+        // Check distance against all already placed column clusters
+        let tooClose = false;
+        for (let placed of placedColumnCenters) {
+            let dist = Math.max(Math.abs(x - placed.x), Math.abs(y - placed.y)); // Chebyshev distance
+            if (dist < minSpacing) {
+                tooClose = true;
+                break;
+            }
+        }
+
+        // If it maintains proper spacing and passes random rarity check, place it
+        if (!tooClose && Math.random() < rarityChance) {
+            for (let t of crossTile) {
+                grid[t.x][t.y] = { 
+                    type: "column", 
+                    isIndestructible: true, 
+                    isCover: true         
+                };
+            }
+            placedColumnCenters.push({ x, y });
+        }
+    }
+
     return grid;
 }

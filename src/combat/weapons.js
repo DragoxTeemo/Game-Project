@@ -56,7 +56,7 @@ export function createFirearm(key, reserve = 0) {
 }
 
 //Create once per run: ammo state lives on these objects (save/load them with the party).
-export const createBlazeArsenal(rifleReserve = 0, shotgunReserve = 0) => ({
+export const createBlazeArsenal = (rifleReserve = 0, shotgunReserve = 0) => ({
     PISTOL: createFirearm("PISTOL"),
     RIFLE: createFirearm("RIFLE", rifleReserve),
     SHOTGUN: createFirearm("SHOTGUN", shotgunReserve)

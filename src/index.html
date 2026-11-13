@@ -46,37 +46,6 @@
         <button id="microBtn">Generate Area Map (Micro)</button>
     </div>
 
-    <!-- Wire up the module script properly -->
-    <script type="module">
-        import { generateMicroMap, drawMicroMapVisual, generateValidatedMacroMap, drawMacroMapVisual } from '../WorldGeneration.js';
-
-        const canvas = document.getElementById('mapCanvas');
-        const ctx = canvas.getContext('2d');
-        const statusText = document.getElementById('statusText');
-
-        function loadMicro() {
-            statusText.textContent = "Generating Micro Map...";
-            const grid = generateMicroMap(15, 15);
-            drawMicroMapVisual(grid, canvas, ctx);
-            statusText.textContent = "Micro Map Generated (15x15)";
-        }
-
-        function loadMacro() {
-            statusText.textContent = "Generating Macro Map...";
-            let groupLevel = Math.floor(Math.random() * 10) + 1;
-            let result = generateValidatedMacroMap(groupLevel);
-            drawMacroMapVisual(result, canvas, ctx);
-            statusText.textContent = `Macro Map Generated (Valid: ${result.success}, Level: ${groupLevel})`;
-        }
-
-        document.getElementById('microBtn').addEventListener('click', loadMicro);
-        document.getElementById('macroBtn').addEventListener('click', loadMacro);
-
-        // Load an initial macro map on startup
-        statusText.textContent = "Generating Initial Map...";
-        let initialMacro = generateValidatedMacroMap(1);
-        drawMacroMapVisual(initialMacro, canvas, ctx);
-        statusText.textContent = "Macro Map Generated (Valid: true)";
-    </script>
+    <script type="module" src="/src/main.js"></script>
 </body>
 </html>

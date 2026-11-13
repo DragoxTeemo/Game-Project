@@ -22,14 +22,14 @@ export class SharedManaPool {
         return this.current;
     }
 
-    canAfford(amount) {
-        return this.current >= amount;
+    canAfford(amount) { 
+        return this.current >= amount; 
     }
 
     spend(amount) {
         if (!this.canAfford(amount)) return false;
         this.current -= amount;
-        return this.current >= amount;
+        return true;
     }
 
     reset() {

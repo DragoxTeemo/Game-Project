@@ -4,11 +4,13 @@ import { EncounterDirector, calculateGroupAverageLevel, distributeAdjustedEXP } 
 import { SharedManaPool } from "./ManaSystem.js";
 import { executeWeaponAttack } from "../combat/weaponExecutionEngine.js";
 import { executeSpellCast } from "../combat/SpellExecutionEngine.js";
-import { executeFirearmAction, executeBasicAttack } from "./combat/firearmEngine.js";
+import { executeFirearmAction, executeBasicAttack } from "../combat/FirearmEngine.js";
 import { getFoeBasicActions } from "../data/foeConfig.js";
-import { getReachableTiles, movementBudget } from "../combat/Pathfinding.js";
+import { getReachableTiles, unitMovePoints } from "../combat/pathfinding.js";
 import { createOpenGrid, placeUnits } from "../combat/placement.js";
-import { isAlive } from "../data/UnitState.js";
+import { isAlive } from "../combat/unitState.js";
+import { getLegalActions, getValidTargets, getMoveTiles, previewAction, validatePlayerAction } from "../combat/turnInput.js";
+import { buildLoadout } from "../combat/Loudout.js";
 
 export class GameDirector {
     constructor() {

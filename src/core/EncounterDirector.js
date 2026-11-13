@@ -3,8 +3,8 @@ import { FoeArchetypes, MasterFoeRegistry } from "../data/foeConfig.js";
 
 export function calculateGroupAverageLevel(party) {
     if (!party || party.length === 0) return 1;
-    let totalLevel = party.reduce((sum, rider) => sum + (rider.level || 1), 0);
-    return Math.max(1, Math.round(totalLevel / party.length));
+    const total = party.reduce((sum, rider) => sum + (rider.level || 1), 0);
+    return Math.max(1, Math.round(total / party.length));
 }
 
 /**
@@ -17,120 +17,57 @@ export function calculateGroupAverageLevel(party) {
 
 
 export function distributeAdjustedEXP(activeParty = [], benchedParty = [], totalXpPool, benchRatio = 0.5) {
-    // Calculate the overall roster average level so both active and benched share a unified baseline
-    const completeRoster = [...activeParty, ...benchedParty];
-    let avgLevel = calculateGroupAverageLevel(completeRoster);
-
-    // Helper logic to process a specific group with an efficiency modifier
-    const rewardGroup = (group, efficiencyMultiplier) => {
-        group.forEach(rider => {
-            let levelDiff = (rider.level || 1) - avgLevel;
-            let multiplier = 1.0;
-
-            if (levelDiff > 0) {
-                multiplier = Math.max(0.2, 1.0 - (levelDiff * 0.05)); // High outlier penalty
-            } else if (levelDiff < 0) {
-                multiplier = Math.min(2.0, 1.0 + (Math.abs(levelDiff) * 0.1)); // Low outlier boost
-            }
-            
-            // Combine base pool, level outlier modifier, and active/bench efficiency
-            let finalExp = Math.floor(totalXpPool * multiplier * efficiencyMultiplier);
-            if (typeof rider.gainXp === "function") {
-                rider.gainXp(finalExp);
-            }
-        });
-    };
-    rewardGroup(activeParty, 1.0); // Active members recieve full efficiency
-    rewardGroup(benchedParty, benchRatio); //Benched member recieve half
+    const avgLevel = calculateGroupAverageLevel([...activeParty, ...benchedParty]);
+    const reward = (group, efficiency) => group.forEach(rider => {
+        const diff = (rider.level || 1) - avgLevel;
+        let mult = 1.0;
+        if (diff > 0) mult = Math.max(0.2, 1.0 - diff * 0.05);       // high-level outlier penalty
+        else if (diff < 0) mult = Math.min(2.0, 1.0 + Math.abs(diff) * 0.1); // low-level outlier boost
+        rider.gainXp?.(Math.floor(totalXpPool * mult * efficiency));
+    });
+    reward(activeParty, 1.0);
+    reward(benchedParty, benchRatio);
 }
-
+ 
 export class EncounterDirector {
-    /**
-     * Dynamically calculates an encounter threat budget smoothly from level 1 to 99.
-     * 
-     * @param {number} groupAverageLevel - The average level of the party.
-     * @returns {number} The calculated threat budget points.
-     */
+    // Single budget formula, capped so late game can't spawn dozens of foes.
     static calculateThreatBudget(groupAverageLevel) {
-        // Smooth continuous scaling to prevent mid-game or late-game "drags"
-        // Scales from 3 points at level 1 up to ~47 points at level 99
-        return Math.floor(3 + (groupAverageLevel * 0.45));
+        return Math.min(36, Math.floor(3 + groupAverageLevel * 0.28));
     }
-
+ 
     static generateRoomEncounter(groupAverageLevel, maxEnemies = 8) {
-        // Scaled budget bounded to prevent massive spam
-        let threatBudget = Math.min(36, Math.floor(3 + groupAverageLevel * 0.28));
-        let spawnedEnemies = [];
-
-
-        // Flatten MasterFoeRegistry into a dynamic spawn list
-        let enemyRegistry = [];
-        for (let [archetype, archData] of Object.entries(MasterFoeRegistry)) {
-            for (let [tier, tierData] of Object.entries(archData.tiers)) {
-                enemyRegistry.push({
-                    archetype: archetype,
-                    tier: tier,
-                    cost: tierData.cost,
-                    minLevel: tierData.minLevel
-                });
+        const budget = this.calculateThreatBudget(groupAverageLevel);
+        const registry = [];
+        for (const [archetype, data] of Object.entries(MasterFoeRegistry))
+            for (const [tier, t] of Object.entries(data.tiers))
+                registry.push({ archetype, tier, cost: t.cost, minLevel: t.minLevel });
+ 
+        // 15% chance of a single-archetype themed encounter.
+        let theme = null;
+        const roll = Math.random();
+        if (roll < 0.05) theme = FoeArchetypes.AIRBORNE;
+        else if (roll < 0.10) theme = FoeArchetypes.CYTOPATH;
+        else if (roll < 0.15) theme = FoeArchetypes.VIRION;
+ 
+        const spawned = [];
+        let spent = 0;
+        for (let attempts = 0; attempts < 100 && spawned.length < maxEnemies; attempts++) {
+            const remaining = budget - spent;
+            const eligible = registry.filter(e =>
+                e.minLevel <= groupAverageLevel && e.cost <= remaining && (!theme || e.archetype === theme));
+ 
+            if (!eligible.length) {
+                if (theme && !spawned.length) { theme = null; continue; } // theme impossible: drop it only before anything spawned
+                break;                                                    // otherwise stop: keeps themed rooms pure
             }
+            if (spawned.length && Math.random() < 0.30) break;
+ 
+            const pool = [];
+            for (const e of eligible) for (let w = 0; w < Math.max(1, 10 - e.cost); w++) pool.push(e);
+            const chosen = pool[Math.floor(Math.random() * pool.length)];
+            spawned.push(new Virus(`Virus_${spawned.length + 1}`, chosen.archetype, chosen.tier, groupAverageLevel));
+            spent += chosen.cost;
         }
-
-        // Fun variation override: 15% chance for a specialized theme encounter (All Ranged, All Tanks, etc.)
-        let themeOverride = null;
-        let rollTheme = Math.random();
-        if (rollTheme < 0.05) {
-            themeOverride = FoeArchetypes.AIRBORNE; // All Ranged Ambush
-        } else if (rollTheme < 0.10) {
-            themeOverride = FoeArchetypes.CYTOPATH; // All Tank Juggernaut Wave
-        } else if (rollTheme < 0.15) {
-            themeOverride = FoeArchetypes.VIRION;   // Swarm Wave
-        }
-
-        let currentBudgetSpent = 0;
-        let attempts = 0;
-        const maxAttempts = 100;
-
-        while (attempts < maxAttempts) {
-            attempts++;
-
-            let remainingBudget = threatBudget - currentBudgetSpent;
-
-            let eligible = enemyRegistry.filter(e => {
-                if (e.minLevel > groupAverageLevel) return false;
-                if (e.cost > remainingBudget) return false;
-                if (themeOverride && e.archetype !== themeOverride) return false;
-                return true;
-            });
-
-            if (eligible.length === 0 && themeOverride) {
-                themeOverride = null;
-                continue;
-            }
-
-            if (eligible.length === 0 || (currentBudgetSpent > 0 && spawnedEnemies.length > 0 && Math.random() < 0.30)) {
-                if (spawnedEnemies.length > 0) break;
-            }
-
-            if (eligible.length === 0) break;
-
-            let weightedPool = [];
-            eligible.forEach(enemy => {
-                let weight = Math.max(1, 10 - enemy.cost);
-                for (let w = 0; w < weight; w++) {
-                    weightedPool.push(enemy);
-                }
-            });
-
-            let chosen = weightedPool[Math.floor(Math.random() * weightedPool.length)];
-            let virusInstance = new Virus(`Virus_${spawnedEnemies.length + 1}`, chosen.archetype, chosen.tier, groupAverageLevel);
-            
-            spawnedEnemies.push(virusInstance);
-            currentBudgetSpent += chosen.cost;
-
-            if (spawnedEnemies.length >= maxEnemies) break;
-        }
-
-        return spawnedEnemies;
+        return spawned;
     }
 }

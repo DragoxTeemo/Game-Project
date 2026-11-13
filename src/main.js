@@ -19,7 +19,7 @@ function showMicro() {
     statusText.textContent = "Micro map (15x15)";
 }
 
-document.getElementById("macroBtn").addEventListener("click", () => showMacro(40)); // Average level 40 triggers Alice's quote
+document.getElementById("macroBtn").addEventListener("click", () => showMacro(40)); // 40 triggers Alice's quote
 document.getElementById("microBtn").addEventListener("click", showMicro);
 
 showMacro(1); // initial render

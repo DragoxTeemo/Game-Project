@@ -1,29 +1,26 @@
-// Virus.js
 import { FoeArchetypes, FoeTiers, MasterFoeRegistry } from "../data/foeConfig.js";
 import { FoeAIController } from "../combat/FoeAI.js";
-import { movementBudget } from "../combat/Pathfinding.js";
- 
+import { unitMovePoints } from "./combat/Pathfinding.js";
+
 export class Virus {
     constructor(title, archetype, tier, groupLevel) {
         this.title = title;
         this.archetype = archetype;
         this.tier = tier;
         this.level = this.calculateScaledLevel(groupLevel, tier);
- 
+
         this.faction = "villain";
         this.isDefeated = false;
         this.isImmuneToMud = false;
         this.x = 0; // tile coordinates, set by placeUnits()
         this.y = 0;
- 
+
         this.applyArchetypeScaling();
         this.applyElementalProfile();
         this.xpReward = this.calculateStaticXpReward();
     }
 
-    get movePoints() { 
-        return movementBudget(this.speed); 
-    }
+    get movePoints() { return unitMovePoints(this); }
 
     calculateScaledLevel(groupLevel, tier) {
         const tierBonus = {
@@ -34,12 +31,10 @@ export class Virus {
         }[tier] || 0;
         return Math.min(99, Math.max(1, groupLevel + tierBonus));
     }
-    
+
     _tierData() {
         const entry = MasterFoeRegistry[this.archetype] || MasterFoeRegistry[FoeArchetypes.VIRION];
-        return {
-            entry, tierData: entry.tiers[this.tier] || entry.tiers[FoeTiers.RED]
-        }
+        return { entry, tierData: entry.tiers[this.tier] || entry.tiers[FoeTiers.RED] };
     }
 
     applyArchetypeScaling() {
@@ -54,7 +49,7 @@ export class Virus {
         this.ward     = Math.floor((4 + this.level * 0.45) * mod.wrd * m);
         this.speed    = Math.floor((5 + this.level * 0.60) * mod.spd * m);
     }
-    
+
     calculateStaticXpReward() {
         const { tierData } = this._tierData();
         const mult = {
@@ -79,7 +74,7 @@ export class Virus {
         if (this.weaknesses.includes(el))  return { type: "WEAK",   multiplier: 1.5, message: "Weak" };
         return { type: "NORMAL", multiplier: 1.0, message: "" };
     }
- 
+
     // ctx: { grid, party, allies, availableActions, manaPool }
     takeTurn(ctx) { return FoeAIController.takeTurn(this, ctx); }
 }

@@ -1,5 +1,4 @@
 import { isAlive } from "../data/UnitState";
-
 // grid[x][y]; units carry tile coords on unit.x / unit.y.
 // Impassable: column, wall, natural_wall, scrap, other living units. Mud costs 2 (unless mover.isImmuneToMud).
 const BLOCKED = new Set(["column", "natural_wall", "wall", "scrap"]);
@@ -16,14 +15,14 @@ export function movementBudget(speed = 0) {
     if (speed >= 10) return 4;
     return 3;
 }
+export const unitMovePoints = unit => movementBudget(unit.speed) + (unit.moveBonus ?? 0);
 
 export function isPassable(grid, x, y) {
     const tile = grid[x]?.[y];
     return !!tile && !BLOCKED.has(tile.type) && !tile.isIndestructible;
 }
  
-export const tileCost = (tile, mover = null) =>
-    tile.type === "mud" && !mover?.isImmuneToMud ? 2 : 1;
+export const tileCost = (tile, mover = null) => tile.type === "mud" && !mover?.isImmuneToMud ? 2 : 1;
  
 function occupiedKeys(units, mover) {
     const keys = new Set();
