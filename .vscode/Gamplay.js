@@ -1,15 +1,5 @@
 import { GameDirector } from "./GameDirector.js";
-
-const MOVEMENT_KEYS = {
-	arrowup: { x: 0, y: -1 },
-	w: { x: 0, y: -1 },
-	arrowdown: { x: 0, y: 1 },
-	s: { x: 0, y: 1 },
-	arrowleft: { x: -1, y: 0 },
-	a: { x: -1, y: 0 },
-	arrowright: { x: 1, y: 0 },
-	d: { x: 1, y: 0 }
-};
+import { WASD } from "./WASD Implementation.js";
 
 const DEFAULT_ACTION_KEYS = {
 	interact: ["e", "enter", " "],
@@ -33,7 +23,7 @@ export class GameplayController {
 		}
 
 		this.player = player;
-		this.position = { ...startPosition };
+		this.position = { ...(player.position || startPosition) };
 		this.bounds = bounds;
 		this.interactionRange = interactionRange;
 		this.movementSpeed = movementSpeed;
@@ -45,14 +35,14 @@ export class GameplayController {
 			new Set((Array.isArray(keys) ? keys : [keys]).map(key => String(key).toLowerCase()))
 		]));
 		this.interactables = new Set();
-		this.pressedMovementKeys = new Set();
+		this.movementInput = new WASD();
 		this.enabled = true;
 		this.eventTarget = null;
 		this.animationFrameId = null;
 		this.lastFrameTimestamp = null;
 		this.keyHandler = event => this.handleKeyDown(event);
 		this.keyUpHandler = event => this.handleKeyUp(event);
-		this.blurHandler = () => this.pressedMovementKeys.clear();
+		this.blurHandler = () => this.movementInput.clear();
 	}
 
 	attach(target = globalThis.window) {
@@ -78,7 +68,7 @@ export class GameplayController {
 		target.removeEventListener("keydown", this.keyHandler);
 		target.removeEventListener("keyup", this.keyUpHandler);
 		target.removeEventListener("blur", this.blurHandler);
-		this.pressedMovementKeys.clear();
+		this.movementInput.clear();
 		if (this.animationFrameId !== null) {
 			target.cancelAnimationFrame?.(this.animationFrameId);
 		}
@@ -114,10 +104,8 @@ export class GameplayController {
 		}
 
 		const key = event.key.toLowerCase();
-		const direction = MOVEMENT_KEYS[key];
-		if (direction) {
+		if (this.movementInput.handleKeyDown(key)) {
 			event.preventDefault?.();
-			this.pressedMovementKeys.add(key);
 			return true;
 		}
 
@@ -150,7 +138,7 @@ export class GameplayController {
 			return false;
 		}
 
-		return this.pressedMovementKeys.delete(event.key.toLowerCase());
+		return this.movementInput.handleKeyUp(event.key);
 	}
 
 	updateMovement(deltaSeconds) {
@@ -158,20 +146,15 @@ export class GameplayController {
 			return false;
 		}
 
-		const isPressed = (...keys) => keys.some(key => this.pressedMovementKeys.has(key));
-		let deltaX = Number(isPressed("d", "arrowright")) - Number(isPressed("a", "arrowleft"));
-		let deltaY = Number(isPressed("s", "arrowdown")) - Number(isPressed("w", "arrowup"));
-		if (deltaX === 0 && deltaY === 0) {
+		const direction = this.movementInput.getDirection();
+		if (direction.x === 0 && direction.y === 0) {
 			return false;
 		}
 
-		const directionLength = Math.hypot(deltaX, deltaY);
-		deltaX /= directionLength;
-		deltaY /= directionLength;
 		const distance = this.movementSpeed * Math.min(deltaSeconds, 0.05);
 		const nextPosition = {
-			x: this.position.x + deltaX * distance,
-			y: this.position.y + deltaY * distance
+			x: this.position.x + direction.x * distance,
+			y: this.position.y + direction.y * distance
 		};
 
 		if (this.bounds && (
