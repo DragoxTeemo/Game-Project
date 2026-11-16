@@ -1,6 +1,7 @@
 import { evaluateAimState, calculateHitProb, getConeTiles, chebyshev } from "./tactics";
 import { getReachableTiles, unitMovePoints } from "./pathfinding";
 import { isAlive } from "../data/UnitState";
+import { MiniGameUIController } from "./MiniGameUIController";
 
 export const DIRECTIONS = { 
     UP: { x: 0, y: -1 }, 
@@ -129,4 +130,32 @@ export function validatePlayerAction(actor, action, ctx, choice = {}) {
     if (!action.enabled) return { ok: false, reason: action.reason ?? "disabled" };
     const preview = previewAction(actor, action, ctx, choice);
     return preview.valid ? { ok: true, preview } : { ok: false, reason: preview.reason };
+}
+
+export async function buildPlayerAction(actor, weapon, target, grid, enemies, extraParams = {}) {
+    let minigameResule = null;
+    const uiContainer = document.getElementById("minigame-overlay-container"); // DOM node for minigame
+
+    // Trigger interactive minigames based on weapon type
+    if (weapon.minigameType === "SLIDER") {
+        minigameResult = await MiniGameUIController.promptSlider(uiContainer, weapon);
+    } else if (weapon.minigameType === "TIMING") {
+        minigameResult = await MiniGameUIController.promptTimingBar(uiContainer, weapon.timingZones || { tStart: 40, tEnd: 60, pStart: 20, pEnd: 80 });
+    } else if (weapon.minigameType === "SPAM") {
+        minigameResult = await MiniGameUIController.promptSpamClick(uiContainer, weapon.targetClicks || 12);
+    } else if (weapon.minigameType === "RNG") {
+        const aim = evaluateAimState(actor, target, weapon.range, grid);
+        minigameResult = MiniGameSystem.runRNGHitCheck(weapon.accuracy ?? 85, aim === "yellow");
+    }
+
+    // Return the complete action payload ready for GameDirector
+    return {
+        item: weapon,
+        target: target,
+        rounds: extraParams.rounds || 1,
+        mode: extraParams.mode || "fire",
+        moveTo: extraParams.moveTo || null,
+        aimDirection: extraParams.aimDirection || null,
+        minigameResult: minigameResult
+    };
 }

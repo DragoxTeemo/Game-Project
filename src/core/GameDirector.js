@@ -10,7 +10,8 @@ import { getReachableTiles, unitMovePoints } from "../combat/pathfinding.js";
 import { createOpenGrid, placeUnits } from "../combat/placement.js";
 import { isAlive } from "../combat/unitState.js";
 import { getLegalActions, getValidTargets, getMoveTiles, previewAction, validatePlayerAction } from "../combat/turnInput.js";
-import { buildLoadout } from "../combat/Loudout.js";
+import { buildLoadout } from "../combat/Loadout.js";
+import { PlayerInputManager } from "../combat/PlayerInputManager.js";
 
 export class GameDirector {
     constructor() {
@@ -27,6 +28,7 @@ export class GameDirector {
         this.gameState = "MAP_EXPLORATION"; // MAP_EXPLORATION, COMBAT, CUTSCENE, FINISHER
         this.rescueTimerId = null;
         this.finisherTimerId = null;
+        this.inputManager = new PlayerInputManager();
     }
  
     initializeParty(riderKeys) {
@@ -115,16 +117,25 @@ export class GameDirector {
     dispatchActorTurn(actor) {
         if (actor.faction === "hero") {
             const q = this.getQueuePlayerAction(actor);
-            if (!q) return; // waiting on input
+            if (!q) {
+                // If no action is queued, trigger UI prompt for this hero and return
+                window.uiController?.promptPlayerAction(actor, this.grid, this.activeEnemies);
+                return; 
+            }
+            
             if (q.moveTo) this.moveUnit(actor, q.moveTo);
-            if (q.item) this.resolveAction(actor, q.item, q.target, this.heroMana, this.activeEnemies, q);
+            if (q.item) {
+                this.resolveAction(actor, q.item, q.target, this.heroMana, this.activeEnemies, q);
+            }
             return;
         }
+        
+        // Villain AI
         const plan = actor.takeTurn({
             grid: this.grid,
             party: this.party,
             allies: this.activeEnemies,
-            availableActions: getFoeBasicActions(actor.archetype), // + foe spells once foeSpells.js exists
+            availableActions: getFoeBasicActions(actor.archetype), 
             manaPool: this.villainMana
         });
         if (plan.moveTo) { actor.x = plan.moveTo.x; actor.y = plan.moveTo.y; } // AI only picks reachable tiles
@@ -134,8 +145,8 @@ export class GameDirector {
     
     // Input handler should return { item, target, rounds, mode: "fire"|"reload", moveTo?, aimDirection? }.
     // BlazE's rifle needs no target. Reload is { item: firearm, mode: "reload" }.
-    getQueuePlayerAction(actor) { 
-        return null; 
+    getQueuePlayerAction(actor) {
+        return this.inputManager.consumeAction();
     }
     
     // Shared routing between the two execution engines: a MagicSpell always carries
@@ -143,12 +154,16 @@ export class GameDirector {
     // the distinguishing field used to pick the engine.
     resolveAction(actor, item, target, manaPool, targetPool, extra = {}) {
         if (!item) return { success: false, reason: "No action item provided." };
-        if (item.type === "Magic") return executeSpellCast(actor, target, item, manaPool, targetPool);
+        if (item.type === "Magic") {
+            return executeSpellCast(actor, target, item, manaPool, targetPool, extra.minigameResult, this.grid);
+        }
         if (item.type === "FIREARM") {
-            return executeFirearmAction(actor, item, { mode: extra.mode, target, rounds: extra.rounds, grid: this.grid, enemies: targetPool });
+            return executeFirearmAction(actor, item, { 
+                mode: extra.mode, target, rounds: extra.rounds, grid: this.grid, enemies: targetPool 
+            });
         }
         if (item.minigameType) {
-            return executeWeaponAttack(actor, target, item, [], this.grid, targetPool, extra.aimDirection ?? null);
+            return executeWeaponAttack(actor, target, item, [], this.grid, targetPool, extra.aimDirection ?? null, extra.minigameResult);
         }
         return executeBasicAttack(actor, item, target, this.grid);
     }

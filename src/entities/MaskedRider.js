@@ -34,10 +34,10 @@ export class MaskedRider {
         this.b = this.coefficients.b;
         this.c = this.coefficients.c;
         
-        this.curvePowerFactor = this.calculateCurvePower(); // Automatically derive growth modifier from the cubic coefficients
+        this.curvePowerFactor = this.calculateCurvePower();
         this.baseElement = registryData.elements || Elements.PHYSICAL.name;
         this.elements = this.baseElement;
-        this.allowedElements = registryData.allowedElements || null; // Store allowed list
+        this.allowedElements = registryData.allowedElements || []; 
 
         if (registryData.forms) {
             this.hasForms = true;
@@ -50,26 +50,32 @@ export class MaskedRider {
             if (initialForm.elements) {
                 this.elements = initialForm.elements;
             }
+            if (initialForm.allowedElements) {
+                this.allowedElements = initialForm.allowedElements;
+            }
         } else {
             this.hasForms = false;
-            this.statAffinities = registryData.statAffinities || registryData.statWeight || {
-                strength: 1.0, 
-                defense: 1.0, 
-                magic: 1.0, 
-                ward: 1.0, 
-                speed: 1.0
+            this.statAffinities = registryData.statAffinities || {
+                strength: 1.0, defense: 1.0, magic: 1.0, ward: 1.0, speed: 1.0
             };
         }
 
-        // Visible public stats starting at the universal baseline
+        // Base Stats
         const baseStatBaseline = 3; 
+        this.baseStats = {
+            strength: baseStatBaseline,
+            defense: baseStatBaseline,
+            magic: baseStatBaseline,
+            ward: baseStatBaseline,
+            speed: baseStatBaseline
+        };
+
         this.strength = baseStatBaseline;
         this.defense = baseStatBaseline;
         this.magic = baseStatBaseline;
         this.ward = baseStatBaseline;
         this.speed = baseStatBaseline;
 
-        // Hidden background accumulator to tract exact decimal growth
         this.statAccumulators = {
             strength: baseStatBaseline / (this.statAffinities.strength || 1.0),
             defense: baseStatBaseline / (this.statAffinities.defense || 1.0),
@@ -78,32 +84,33 @@ export class MaskedRider {
             speed: baseStatBaseline / (this.statAffinities.speed || 1.0)
         };
 
-        // Use unified HP formula starting at level 1
         this.maxHp = this.calculateMaxHpForLevel(1);
         this.hp = this.maxHp;
 
         this.isDefeated = false;
         this.hasBonusAction = false;
+        
+        // --- STATUS & BUFF TRACKING (3-Round Durations) ---
+        this.activeBuffs = []; // Array of { stat, modifier, duration }
+        this.extraMovementTiles = 0; // For Strike's speed buff
     }
 
-    infuseEchoElement(elementName) {
-        if (this.codename !== "Echo") {
-            console.warn(`${this.codename} does not support secondary element infusion.`);
+    /**
+     * Replaces hardcoded arrays. Validates element against the active form or registry's allowed list.
+     */
+    setElement(elementName) {
+        if (!this.allowedElements || this.allowedElements.length === 0) {
+            console.warn(`${this.codename}'s current form (${this.activeFormKey}) does not support elemental infusion.`);
             return false;
         }
 
-        const allowedEchoElements = [
-            Elements.FIRE.name,
-            Elements.ICE.name,
-            Elements.WIND.name,
-            Elements.LIGHTNING.name
-        ];
-        if (!allowedEchoElements.includes(elementName)) {
-            console.warn(`Cody cannot use ${elementName}. Restricted to Fire, Ice, Wind, and Lightning.`);
+        if (!this.allowedElements.includes(elementName)) {
+            console.warn(`${elementName} is not accessible in ${this.activeFormKey} form.`);
             return false;
         }
+
         this.elements = elementName;
-        console.log(`Cody infused his auxiliary form with element: ${elementName}`);
+        console.log(`${this.codename} successfully infused active element: ${elementName}`);
         return true;
     }
 
@@ -115,33 +122,121 @@ export class MaskedRider {
 
         this.activeFormKey = formKey;
         this.statAffinities = newAffinities;
-        if (targetForm.elements) {
-            this.elements = targetForm.elements;
+
+        // 1. Update allowed elements pool based on the form configuration
+        this.allowedElements = targetForm.allowedElements || [];
+
+        // 2. Base form or element-less forms reset the active element
+        if (targetForm.elements === null || this.allowedElements.length === 0) {
+            this.elements = null; // Or Elements.PHYSICAL.name if preferred
+            console.log(`${this.codename} transformed into ${targetForm.formName || formKey}. Element slot cleared.`);
+        } else {
+            // Keep current element if it's valid in the new form, otherwise default to the first allowed element
+            if (!this.allowedElements.includes(this.elements)) {
+                this.elements = this.allowedElements[0];
+            }
+            console.log(`${this.codename} transformed into ${targetForm.formName || formKey}. Allowed elements updated.`);
         }
 
-        // Star and Echo forms change stats immediately. Other form swaps keep current stats 
-        // and only update statAffinities for future growth.
-
+        // Stat adjustment logic...
         const changesStatsImmediately = (this.codename === "Star" || this.codename === "Echo");
         if (changesStatsImmediately) {
             this.updateAllStats();
-            console.log(`${this.codename} shifted configuration into ${targetForm.formName || formKey} (Stats updated immediately)`);
         } else {
-            // Adjust levelPool so that levelPool * newAffinity = currentStat (keeping current stats unchanged)
             this.statAccumulators.strength = this.strength / (newAffinities.strength || 1.0);
             this.statAccumulators.defense  = this.defense  / (newAffinities.defense || 1.0);
             this.statAccumulators.magic    = this.magic    / (newAffinities.magic || 1.0);
             this.statAccumulators.ward     = this.ward     / (newAffinities.ward || 1.0);
             this.statAccumulators.speed    = this.speed    / (newAffinities.speed || 1.0);
-
-            console.log(`${this.codename} shifted configuration into ${targetForm.formName || formKey} (Stats unchanged, affinities updated for future growth)`);
         }
 
         return true;
     }
 
-    move(gridCoordinates) {
-        console.log(`${this.codename} traverses the micro-grid based on speed: ${this.speed} towards coordinates (${gridCoordinates.x}, ${gridCoordinates.y})`);
+    // --- 3-ROUND BUFF / DEBUFF SYSTEM ---
+
+    applyBuff(stat, modifier, duration = 3) {
+        this.activeBuffs.push({ stat, modifier, duration });
+        console.log(`${this.codename}'s ${stat} boosted by ${modifier} for ${duration} rounds.`);
+    }
+
+    tickBuffs() {
+        this.activeBuffs.forEach(buff => buff.duration--);
+        // Filter out expired buffs
+        this.activeBuffs = this.activeBuffs.filter(buff => {
+            if (buff.duration <= 0) {
+                console.log(`${this.codename}'s buff to ${buff.stat} has worn off.`);
+                return false;
+            }
+            return true;
+        });
+        if (this.extraMovementTiles > 0) {
+            this.extraMovementTiles--;
+        }
+    }
+
+    // --- CHARACTER SPECIAL SUPPORT ACTIONS ---
+
+    // Ace: Boost Defense (1 ally)
+    static supportAce(targetAlly) {
+        targetAlly.applyBuff('defense', 0.25, 3);
+    }
+
+    // BlazE: Boost Attack (1 ally)
+    static supportBlazE(targetAlly) {
+        targetAlly.applyBuff('strength', 0.25, 3);
+    }
+
+    // Rose: Boost Magic (team) + Random Stat (single target, or team if magic)
+    supportRose(partyAllies) {
+        // Boost team magic
+        partyAllies.forEach(ally => ally.applyBuff('magic', 0.20, 3));
+
+        // Random single target stat buff
+        const possibleStats = ['strength', 'speed', 'ward', 'defense', 'magic'];
+        const chosenStat = possibleStats[Math.floor(Math.random() * possibleStats.length)];
+        
+        if (chosenStat === 'magic') {
+            partyAllies.forEach(ally => ally.applyBuff(chosenStat, 0.15, 3));
+            console.log("Rose's song rolled Magic! Boosted Magic for the entire team.");
+        } else {
+            const targetAlly = partyAllies[Math.floor(Math.random() * partyAllies.length)];
+            targetAlly.applyBuff(chosenStat, 0.30, 3);
+            console.log(`Rose's song rolled ${chosenStat}! Boosted ${chosenStat} for ${targetAlly.name}.`);
+        }
+    }
+
+    // Strike: Boost Speed (1 ally) + Extra Movement Tile
+    static supportStrike(targetAlly) {
+        targetAlly.applyBuff('speed', 0.30, 3);
+        targetAlly.extraMovementTiles += 1;
+        console.log(`${targetAlly.name} gains +1 movement tile and increased speed for 3 rounds!`);
+    }
+
+    // Star Form-Specific Debuffs/Buffs on target foe or ally
+    executeStarFormAction(target) {
+        switch (this.activeFormKey) {
+            case "DRAGON":
+                target.applyBuff('strength', -0.25, 3); // Lowers enemy attack
+                break;
+            case "PIXIE":
+                target.applyBuff('speed', -0.25, 3);    // Lowers enemy speed
+                break;
+            case "PHOENIX":
+                target.applyBuff('magic', -0.25, 3);    // Lowers enemy magic
+                break;
+            case "PEACOCK":
+                target.applyBuff('defense', -0.25, 3);  // Lowers enemy defense
+                break;
+            case "PRINCESS":
+                target.applyBuff('ward', 0.30, 3);      // Grants Ward to ally
+                break;
+            case "UNICORN":
+                target.applyBuff('ward', -0.25, 3);     // Lowers enemy ward
+                break;
+            default:
+                console.log("No special form action available.");
+        }
     }
 
     calculateCurvePower() {
@@ -154,9 +249,6 @@ export class MaskedRider {
         return Math.floor(this.a * Math.pow(x, 3) + this.b * Math.pow(x, 2) + this.c * x);
     }
 
-    /**
-     * Unified HP calculation based on growth curve to prevent sudden level 1 to level 2 leaps
-     */
     calculateMaxHpForLevel(targetLevel) {
         let rawCurve = (this.a * Math.pow(targetLevel, 3) + this.b * Math.pow(targetLevel, 2) + this.c * targetLevel);
         let calculatedHp = Math.floor(rawCurve / 2200) + 50; 
@@ -164,76 +256,50 @@ export class MaskedRider {
     }
 
     gainXp(amount) {
-        if (this.level >= 99) return; // Prevent gaining XP once max level is reached
-
+        if (this.level >= 99) return;
         this.xp += amount;
         while (this.level < 99 && this.xp >= this.getXpRequirementPerLevel(this.level + 1)) {
             this.level++;
-
             let oldMaxHp = this.maxHp;
             this.calculateStatGrowth(); 
             let hpGain = this.maxHp - oldMaxHp;
             this.hp = Math.min(this.maxHp, this.hp + Math.max(0, hpGain));
-            console.log(`${this.codename} leveled up to level ${this.level}`);
         }
-
-        if (this.level >= 99) {
-            this.level = 99;
-        }
+        if (this.level >= 99) this.level = 99;
     }
 
     calculateStatGrowth() {
         let baseScaling = 0.45;
-
         this.strength = this.updateSingleStat('strength', baseScaling);
         this.defense  = this.updateSingleStat('defense', baseScaling);
         this.magic    = this.updateSingleStat('magic', baseScaling);
         this.ward     = this.updateSingleStat('ward', baseScaling);
         this.speed    = this.updateSingleStat('speed', baseScaling);
-
         this.maxHp = this.calculateMaxHpForLevel(this.level);
     }
 
     updateSingleStat(statName, baseScaling) {
         let levelProgressRatio = this.level / 99; 
         let diminishingFactor = 1.0 - (levelProgressRatio * 0.6); 
-
-        // Accumulate growth in the level pool WITHOUT affinity baked in
         let growthIncrement = baseScaling * this.curvePowerFactor * diminishingFactor; 
         this.statAccumulators[statName] += growthIncrement; 
 
-        // Derive current stat as levelPool × affinity
         let affinity = this.statAffinities[statName] || 1.0;
-        return Math.min(99, Math.floor(this.statAccumulators[statName] * affinity)); 
+        let finalStat = Math.floor(this.statAccumulators[statName] * affinity);
+        
+        // Apply active buffs if any
+        const activeBuff = this.activeBuffs.find(b => b.stat === statName);
+        if (activeBuff) {
+            finalStat = Math.floor(finalStat * (1 + activeBuff.modifier));
+        }
+        return Math.min(99, Math.max(1, finalStat));
     }
 
     updateAllStats() {
-        this.strength = Math.min(99, Math.floor(this.statAccumulators.strength * (this.statAffinities.strength || 1.0)));
-        this.defense  = Math.min(99, Math.floor(this.statAccumulators.defense * (this.statAffinities.defense || 1.0)));
-        this.magic    = Math.min(99, Math.floor(this.statAccumulators.magic * (this.statAffinities.magic || 1.0)));
-        this.ward     = Math.min(99, Math.floor(this.statAccumulators.ward * (this.statAffinities.ward || 1.0)));
-        this.speed    = Math.min(99, Math.floor(this.statAccumulators.speed * (this.statAffinities.speed || 1.0)));
+        this.strength = this.updateSingleStat('strength', 0);
+        this.defense  = this.updateSingleStat('defense', 0);
+        this.magic    = this.updateSingleStat('magic', 0);
+        this.ward     = this.updateSingleStat('ward', 0);
+        this.speed    = this.updateSingleStat('speed', 0);
     }
 }
-
-/*
-class Antagonist {
-    constructor(name, title, level, element, weakness) {
-        this.name = name;
-        this.title = title;
-        this.level = level;
-        this.element = element;
-        this.weakness = weakness;
-        
-        // Boss-tier stats scaling aggressively with level
-        this.maxHp = 250 + (level * 45);
-        this.hp = this.maxHp;
-        this.strength = 18 + (level * 4);
-        this.defense  = 14 + (level * 3);
-        this.magic    = 16 + (level * 3.5);
-        this.ward     = 12 + (level * 2.5);
-        this.speed    = 10 + (level * 2);
-
-        this.isDefeated = false;
-}
-*/
